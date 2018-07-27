@@ -37,7 +37,7 @@ func main() {
 		// read the auth code from URL Param
 		// call Okta to exchange Auth Code for JWT
 		// set JWT in Cookie
-		// if error, return 403 with "X-Authorize-Error" with error Param
+		// if error, redirect to "/sso/error?error={error string}"
 		log.Println(html.EscapeString(r.URL.Path))
 		fmt.Fprintf(w, "Hello, %q", html.EscapeString(r.URL.Path))
 	})
