@@ -8,8 +8,8 @@ envsubst '${UPSTREAM}' \
     < /etc/nginx/templates/default.conf \
     > /etc/nginx/conf.d/default.conf
 
-# start okta-verify
-okta-verify &
+# start okta-nginx
+okta-nginx &
 okta_verify_pid=$!
 
 okta_verify_started="false"
@@ -22,10 +22,10 @@ for i in $(seq 0 50); do
 done
 
 if [ "$okta_verify_started" = "false" ]; then
-    echo "okta-verify failed to start" >&2
+    echo "okta-nginx failed to start" >&2
     exit 1
 fi
-echo "okta-verify started"
+echo "okta-nginx started"
 
 # start nginx
 nginx -g 'daemon off;' &
@@ -35,7 +35,7 @@ echo "nginx started"
 # monitor
 while true; do
     if ! kill -0 "$okta_verify_pid"; then
-        echo "okta-verify has died" >&2
+        echo "okta-nginx has died" >&2
         exit 1
     fi
     if ! kill -0 "$nginx_pid"; then
