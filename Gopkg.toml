@@ -28,7 +28,3 @@
 [prune]
   go-tests = true
   unused-packages = true
-
-[[constraint]]
-  branch = "develop"
-  name = "github.com/caleblloyd/okta-jwt-verifier-golang"

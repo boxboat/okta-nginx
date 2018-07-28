@@ -2,12 +2,19 @@
 
 
 [[projects]]
-  branch = "develop"
-  digest = "1:03ab10ac84df3b81aa629bce894675f4462e9d24b5d67934e3122ea36acfd31e"
+  branch = "master"
+  digest = "1:30b9e31427f7ae832756551813b55dd2ecb800e047385e2b90b0d5e94391706f"
   name = "github.com/caleblloyd/okta-jwt-verifier-golang"
-  packages = ["."]
+  packages = [
+    ".",
+    "adaptors",
+    "adaptors/lestrratGoJwx",
+    "discovery",
+    "discovery/oidc",
+    "errors",
+  ]
   pruneopts = "UT"
-  revision = "04702def3e1b9b1c6b419c9c3aae1ec184a5d4b2"
+  revision = "2d2b68fc61a44e0cdc4aa94de664eaf79d73ae5e"
 
 [[projects]]
   digest = "1:a2c1d0e43bd3baaa071d1b9ed72c27d78169b2b269f71c105ac4ba34b1be4a39"
@@ -42,18 +49,12 @@
   revision = "39f9a71bcabe9432cbdfe4d3d33f41988acd2ce6"
 
 [[projects]]
-  branch = "develop"
-  digest = "1:d7c429d7dd517fff3dada795bf55fe5d2198bfb192e892e2e686bb841b79adb3"
-  name = "github.com/okta/okta-jwt-verifier-golang"
-  packages = [
-    "adaptors",
-    "adaptors/lestrratGoJwx",
-    "discovery",
-    "discovery/oidc",
-    "errors",
-  ]
+  digest = "1:808cdddf087fb64baeae67b8dfaee2069034d9704923a3cb8bd96a995421a625"
+  name = "github.com/patrickmn/go-cache"
+  packages = ["."]
   pruneopts = "UT"
-  revision = "04702def3e1b9b1c6b419c9c3aae1ec184a5d4b2"
+  revision = "a3647f8e31d79543b2d0f0ae2fe5c379d72cedc0"
+  version = "v2.1.0"
 
 [[projects]]
   digest = "1:40e195917a951a8bf867cd05de2a46aaf1806c50cf92eebf4c16f78cd196f747"
