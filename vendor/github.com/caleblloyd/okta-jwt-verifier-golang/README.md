@@ -10,7 +10,7 @@ Need help? [Okta Developer Forum].
 
 ## Installation
 ```sh
-go get -u github.com/okta/okta-jwt-verifier-golang
+go get -u github.com/caleblloyd/okta-jwt-verifier-golang
 ```
 
 ## Usage
@@ -22,7 +22,7 @@ This library was built to keep configuration to a minimum. To get it running at 
 
 #### Access Token Validation
 ```go
-import github.com/okta/okta-jwt-verifier-golang
+import github.com/caleblloyd/okta-jwt-verifier-golang
 
 toValidate := map[string]string{}
 toValidate["aud"] = "api://default"
@@ -40,7 +40,7 @@ token, err := verifier.VerifyAccessToken("{JWT}")
 
 #### Id Token Validation
 ```go
-import github.com/okta/okta-jwt-verifier-golang
+import github.com/caleblloyd/okta-jwt-verifier-golang
 
 toValidate := map[string]string{}
 toValidate["nonce"] = "{NONCE}"
