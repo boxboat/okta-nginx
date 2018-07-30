@@ -39,12 +39,12 @@ func getConfig() config {
 	//Populate config from env vars
 	clientID := os.Getenv("CLIENT_ID")
 	if clientID == "" {
-		log.Fatalln("Must specify CLIENT_ID env variable - These can be found on the 'General' tab of the Web application that you created earlier in the Okta Developer Console.")
+		log.Fatalln("Must specify CLIENT_ID env variable - Client ID can be found on the 'General' tab of the Web application that you created earlier in the Okta Developer Console.")
 	}
 
 	clientSecret := os.Getenv("CLIENT_SECRET")
 	if clientSecret == "" {
-		log.Fatalln("Must specify CLIENT_SECRET env variable - These can be found on the 'General' tab of the Web application that you created earlier in the Okta Developer Console.")
+		log.Fatalln("Must specify CLIENT_SECRET env variable - Client Secret be found on the 'General' tab of the Web application that you created earlier in the Okta Developer Console.")
 	}
 
 	issuer := strings.TrimRight(os.Getenv("ISSUER"), "/")
@@ -79,7 +79,7 @@ func getConfig() config {
 		"?client_id=" + url.QueryEscape(clientID) +
 		"&redirect_uri=" + url.QueryEscape(loginRedirectURL) +
 		"&response_type=code" +
-		"&scope=openid" +
+		"&scope=openid profile" +
 		"&nonce=123"
 
 	return config{
@@ -118,8 +118,7 @@ func runServer(conf config) {
 	}
 	defer removeSockIfExists()
 
-	//might need to change owner of the socket
-	if err = os.Chmod(sock, 0660); err != nil {
+	if err = os.Chmod(sock, 0666); err != nil {
 		log.Fatal(err)
 	}
 
@@ -129,6 +128,7 @@ func runServer(conf config) {
 	}
 }
 
+//validateCookieHandler calls the okta api to validate the cookie
 func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf config) {
 	redirectURL := conf.oktaLoginBaseURL + "&state=" + url.QueryEscape(r.URL.RequestURI())
 
@@ -173,7 +173,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request, conf config) {
 		return
 	}
 
-	//Redirtect if error
+	//Redirect if error
 	jwt, err := getJWT(code, conf)
 	if err != nil {
 		http.Redirect(w, r, "/sso/error?error="+url.QueryEscape(err.Error()), http.StatusTemporaryRedirect)
@@ -216,7 +216,7 @@ func getJWT(code string, conf config) (string, error) {
 		"&client_secret=" + url.QueryEscape(conf.clientSecret) +
 		"&redirect_uri=" + url.QueryEscape(conf.loginRedirectURL) +
 		"&grant_type=authorization_code" +
-		"&scope=openid")
+		"&scope=openid profile")
 
 	req, err := http.NewRequest("POST", conf.issuer+"/v1/token", bytes.NewBuffer(reqBody))
 	if err != nil {
