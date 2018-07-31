@@ -10,6 +10,7 @@ fi
 
 docker run \
     --rm \
+    --name "okta-nginx" \
     -e "CLIENT_ID=$CLIENT_ID" \
     -e "CLIENT_SECRET=$CLIENT_SECRET" \
     -e "ISSUER=$ISSUER" \
