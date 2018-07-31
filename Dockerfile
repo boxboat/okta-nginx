@@ -1,4 +1,4 @@
-FROM golang:alpine3.7 AS build
+FROM golang:1.10.3-alpine3.8 AS build
 
 COPY / /go/src/github.com/boxboat/okta-nginx/
 
@@ -6,7 +6,7 @@ RUN cd /go/src/github.com/boxboat/okta-nginx/ \
     && go build
 
 
-FROM nginx:alpine
+FROM nginx:1.14.0-alpine
 
 RUN apk add --no-cache \
         ca-certificates
