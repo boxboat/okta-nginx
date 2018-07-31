@@ -1,11 +1,19 @@
 #!/bin/sh
 
+extract_scheme () {
+    echo "$1" | sed -r 's|^(https?)://.*$|\1|ig'
+}
+
 extract_host () {
-    echo "$1" | sed -r 's|(https?://[^/]+)(/.*)|\1|g'
+    echo "$1" | sed -r 's|^https?://([^/]+).*$|\1|ig'
+}
+
+extract_origin () {
+    echo "$1" | sed -r 's|^(https?://[^/]+)(/.*)$|\1|ig'
 }
 
 extract_path () {
-    echo "$1" | sed -r 's|(https?://[^/]+)(/.*)|\2|g'
+    echo "$1" | sed -r 's|^https?://[^/]+([^\?]+).*$|\1|ig'
 }
 
 # start okta-nginx
@@ -27,20 +35,9 @@ if [ "$okta_verify_started" = "false" ]; then
 fi
 echo "okta-nginx started"
 
-# set upstream server
-if [ -z "$UPSTREAM_SERVER" ]; then
-    export UPSTREAM_SERVER="unix:/var/run/default-server.sock"
-    cp /etc/nginx/templates/default-server.conf /etc/nginx/conf.d/
-fi
-if [ ! -f "/etc/nginx/conf.d/upstream-server.conf" ]; then
-    envsubst '${UPSTREAM_SERVER}' \
-        < /etc/nginx/templates/upstream-server.conf \
-        > /etc/nginx/conf.d/upstream-server.conf
-fi
-
 # stamp out redirect-js.conf template
 if [ "$INJECT_REFRESH_JS" != "false" ]; then
-    app_origin=$(extract_host "$LOGIN_REDIRECT_URL")
+    app_origin=$(extract_origin "$LOGIN_REDIRECT_URL")
     export REFRESH_JS=$(/var/okta-nginx/refresh-minify.sh "$app_origin")
     envsubst '${REFRESH_JS}' \
             < /etc/nginx/templates/refresh-js.conf \
@@ -48,8 +45,12 @@ if [ "$INJECT_REFRESH_JS" != "false" ]; then
 fi
 
 # stamp out default.conf template
+if [ -z "$UPSTREAM_ORIGIN" ]; then
+    export UPSTREAM_ORIGIN="http://unix:/var/run/default-server.sock"
+    cp /etc/nginx/templates/default-server.conf /etc/nginx/conf.d/
+fi
 export APP_REDIRECT_PATH=$(extract_path "$LOGIN_REDIRECT_URL")
-envsubst '${APP_REDIRECT_PATH}' \
+envsubst '${APP_REDIRECT_PATH},${UPSTREAM_ORIGIN}' \
         < /etc/nginx/templates/default.conf \
         > /etc/nginx/conf.d/default.conf
 

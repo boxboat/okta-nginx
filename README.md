@@ -11,7 +11,7 @@ This repository builds a Docker Image that protects an upstream server using [Ok
 
 ### Required
 
-- `UPSTREAM_SERVER` - The upstream server to proxy authenticated requests to.  Should be a full url e.g. `http://localhost:8080`
+- `UPSTREAM_ORIGIN` - The upstream origin to proxy authenticated requests to.  Should include scheme, host, and port e.g. `http://localhost:8080`
 - `CLIENT_ID` - The Client ID can be found on the 'General' tab of the Web application that you created earlier in the Okta Developer Console
 - `CLIENT_SECRET` - The Client Secret be found on the 'General' tab of the Web application that you created earlier in the Okta Developer Console
 - `ISSUER` - Issuer is the URL of the authorization server that will perform authentication. All Developer Accounts have a 'default' authorization server. The issuer is a combination of your Org URL (found in the upper right of the console home page) and /oauth2/default. For example, `https://xxxxx.oktapreview.com/oauth2/default`
@@ -32,15 +32,3 @@ This repository builds a Docker Image that protects an upstream server using [Ok
 1.  Build container `./docker-build.sh`
 2.  Set environment variables in vars.env to match your deployment
 3.  Run container `./docker-run.sh`
-
-##  Complex Upstream Configuration
-
-To provide your own upstream configuration, you can optionally mount an nginx upstream configuration with the name `upstream_server` into `/etc/nginx/conf.d/upstream-server.conf`
-
-```
-# file location: /etc/nginx/conf.d/upstream-server.conf
-upstream upstream_server {
-    server http://localhost:8080;
-    keepalive 256;
-}
-```
