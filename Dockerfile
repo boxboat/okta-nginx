@@ -1,15 +1,17 @@
 FROM golang:alpine3.7 AS build
 
-COPY *.go /go/src/github.com/boxboat/okta-verify/
+COPY / /go/src/github.com/boxboat/okta-nginx/
 
-RUN cd /go/src/github.com/boxboat/okta-verify/ \
-    && go get \
+RUN cd /go/src/github.com/boxboat/okta-nginx/ \
     && go build
 
 
 FROM nginx:alpine
 
-COPY --from=build /go/src/github.com/boxboat/okta-verify/okta-verify /usr/local/bin/okta-verify
+RUN apk add --no-cache \
+        ca-certificates
+
+COPY --from=build /go/src/github.com/boxboat/okta-nginx/okta-nginx /usr/local/bin/okta-nginx
 
 COPY stage/ /
 
