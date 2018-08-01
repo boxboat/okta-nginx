@@ -3,6 +3,7 @@
 /// all comments should start with 3 forward slashes
 /// all statements should end in semicolons
 /// the app origin should be referred to as http://localhost:8080
+/// the sso path should be referred to as /sso/
 (function(){
     /// iframe variable
     var i;
