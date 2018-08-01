@@ -21,16 +21,18 @@ import (
 const sock = "/var/run/auth.sock"
 
 type config struct {
-	appOrigin        string        //computed
-	clientID         string        //CLIENT_ID
-	clientSecret     string        //CLIENT_SECRET
-	cookieName       string        //computed
-	issuer           string        //ISSUER
-	loginRedirect    string        //LOGIN_REDIRECT_URL
-	oktaLoginBaseURL string        //computed
-	oktaOrigin       string        //computed
-	requestTimeout   time.Duration //Default of 5 seconds if no env set
-	verifier         *jwtverifier.JwtVerifier
+	appOrigin         string        //computed
+	clientID          string        //CLIENT_ID
+	clientSecret      string        //CLIENT_SECRET
+	cookieName        string        //computed
+	issuer            string        //ISSUER
+	loginRedirectPath string        //computed
+	loginRedirectURL  string        //LOGIN_REDIRECT_URL
+	oktaLoginBaseURL  string        //computed
+	oktaOrigin        string        //computed
+	ssoPath           string        //SSO_PATH
+	requestTimeout    time.Duration //Default of 5 seconds if no env set
+	verifier          *jwtverifier.JwtVerifier
 }
 
 type jwtResponse struct {
@@ -65,6 +67,13 @@ func getConfig() *config {
 	loginRedirectURL, err := url.Parse(loginRedirect)
 	if err != nil {
 		log.Fatalf("LOGIN_REDIRECT_URL is not a valid URL, %v", loginRedirect)
+	}
+
+	ssoPath := os.Getenv("SSO_PATH")
+	if ssoPath == "" {
+		ssoPath = "/sso/"
+	} else {
+		ssoPath = "/" + strings.Trim(ssoPath, "/") + "/"
 	}
 
 	cookieName := os.Getenv("COOKIE_NAME")
@@ -104,16 +113,18 @@ func getConfig() *config {
 		"&nonce=123"
 
 	return &config{
-		appOrigin:        appOrigin,
-		clientID:         clientID,
-		clientSecret:     clientSecret,
-		cookieName:       cookieName,
-		issuer:           issuer,
-		loginRedirect:    loginRedirect,
-		oktaLoginBaseURL: oktaLoginBaseURL,
-		oktaOrigin:       oktaOrigin,
-		requestTimeout:   requestTimeOutDuration,
-		verifier:         jwtverifierSetup.New(),
+		appOrigin:         appOrigin,
+		clientID:          clientID,
+		clientSecret:      clientSecret,
+		cookieName:        cookieName,
+		issuer:            issuer,
+		loginRedirectPath: loginRedirectURL.Path,
+		loginRedirectURL:  loginRedirect,
+		oktaLoginBaseURL:  oktaLoginBaseURL,
+		oktaOrigin:        oktaOrigin,
+		requestTimeout:    requestTimeOutDuration,
+		ssoPath:           ssoPath,
+		verifier:          jwtverifierSetup.New(),
 	}
 }
 
@@ -129,22 +140,22 @@ func runServer(conf *config) {
 	})
 
 	//Authorization code callback
-	http.HandleFunc("/sso/authorization-code/callback", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(conf.loginRedirectPath, func(w http.ResponseWriter, r *http.Request) {
 		callbackHandler(w, r, conf)
 	})
 
 	//Refresh check
-	http.HandleFunc("/sso/refresh/check", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(conf.ssoPath+"refresh/check", func(w http.ResponseWriter, r *http.Request) {
 		refreshCheckHandler(w, r, conf)
 	})
 
 	//Refresh done
-	http.HandleFunc("/sso/refresh/done", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(conf.ssoPath+"refresh/done", func(w http.ResponseWriter, r *http.Request) {
 		refreshDoneHandler(w, r, conf)
 	})
 
 	//Error
-	http.HandleFunc("/sso/error", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(conf.ssoPath+"error", func(w http.ResponseWriter, r *http.Request) {
 		errorHandler(w, r, conf)
 	})
 
@@ -399,7 +410,7 @@ func getJWT(code string, conf *config) (string, error) {
 	reqBody := []byte("code=" + url.QueryEscape(code) +
 		"&client_id=" + url.QueryEscape(conf.clientID) +
 		"&client_secret=" + url.QueryEscape(conf.clientSecret) +
-		"&redirect_uri=" + url.QueryEscape(conf.loginRedirect) +
+		"&redirect_uri=" + url.QueryEscape(conf.loginRedirectURL) +
 		"&grant_type=authorization_code" +
 		"&scope=openid profile")
 
