@@ -1,11 +1,23 @@
 #!/bin/sh
 
+extract_scheme () {
+    echo "$1" | sed -r 's|^(https?)://.*$|\1|ig'
+}
+
 extract_host () {
-    echo "$1" | sed -r 's|(https?://[^/]+)(/.*)|\1|g'
+    echo "$1" | sed -r 's|^https?://([^/]+).*$|\1|ig'
+}
+
+extract_origin () {
+    echo "$1" | sed -r 's|^(https?://[^/]+)(/.*)$|\1|ig'
 }
 
 extract_path () {
-    echo "$1" | sed -r 's|(https?://[^/]+)(/.*)|\2|g'
+    echo "$1" | sed -r 's|^https?://[^/]+([^\?]+).*$|\1|ig'
+}
+
+ensure_path () {
+    echo "/$1/" | sed -r 's:(^//|//$):/:ig'
 }
 
 # start okta-nginx
@@ -27,29 +39,28 @@ if [ "$okta_verify_started" = "false" ]; then
 fi
 echo "okta-nginx started"
 
-# set upstream server
-if [ -z "$UPSTREAM_SERVER" ]; then
-    export UPSTREAM_SERVER="unix:/var/run/default-server.sock"
-    cp /etc/nginx/templates/default-server.conf /etc/nginx/conf.d/
+# set SSO path
+if [ -z "$SSO_PATH" ]; then
+    export SSO_PATH="/sso/"
 fi
-if [ ! -f "/etc/nginx/conf.d/upstream-server.conf" ]; then
-    envsubst '${UPSTREAM_SERVER}' \
-        < /etc/nginx/templates/upstream-server.conf \
-        > /etc/nginx/conf.d/upstream-server.conf
-fi
+export SSO_PATH=$(ensure_path "$SSO_PATH")
 
 # stamp out redirect-js.conf template
 if [ "$INJECT_REFRESH_JS" != "false" ]; then
-    app_origin=$(extract_host "$LOGIN_REDIRECT_URL")
-    export REFRESH_JS=$(/var/okta-nginx/refresh-minify.sh "$app_origin")
+    app_origin=$(extract_origin "$LOGIN_REDIRECT_URL")
+    export REFRESH_JS=$(/var/okta-nginx/refresh-minify.sh "$app_origin" "$SSO_PATH")
     envsubst '${REFRESH_JS}' \
             < /etc/nginx/templates/refresh-js.conf \
             > /etc/nginx/includes/refresh-js.conf
 fi
 
 # stamp out default.conf template
+if [ -z "$PROXY_PASS" ]; then
+    export PROXY_PASS="http://unix:/var/run/example-server.sock"
+    cp /etc/nginx/templates/example-server.conf /etc/nginx/conf.d/
+fi
 export APP_REDIRECT_PATH=$(extract_path "$LOGIN_REDIRECT_URL")
-envsubst '${APP_REDIRECT_PATH}' \
+envsubst '${APP_REDIRECT_PATH},${PROXY_PASS},${SSO_PATH}' \
         < /etc/nginx/templates/default.conf \
         > /etc/nginx/conf.d/default.conf
 
