@@ -39,11 +39,27 @@ if [ "$okta_verify_started" = "false" ]; then
 fi
 echo "okta-nginx started"
 
-# set SSO path
+# set SSO_PATH
 if [ -z "$SSO_PATH" ]; then
     export SSO_PATH="/sso/"
 fi
 export SSO_PATH=$(ensure_path "$SSO_PATH")
+# set LISTEN
+if [ -z "$LISTEN" ]; then
+    export LISTEN="80";
+fi
+# set PROXY_PASS
+if [ -z "$PROXY_PASS" ]; then
+    export PROXY_PASS="http://unix:/var/run/example-server.sock"
+    cp /etc/nginx/templates/example-server.conf /etc/nginx/conf.d/
+fi
+# set APP_REDIRECT_PATH
+export APP_REDIRECT_PATH=$(extract_path "$LOGIN_REDIRECT_URL")
+
+# stamp out default.conf template
+envsubst '${APP_REDIRECT_PATH},${LISTEN},${PROXY_PASS},${SSO_PATH}' \
+        < /etc/nginx/templates/default.conf \
+        > /etc/nginx/conf.d/default.conf
 
 # stamp out redirect-js.conf template
 if [ "$INJECT_REFRESH_JS" != "false" ]; then
@@ -53,16 +69,6 @@ if [ "$INJECT_REFRESH_JS" != "false" ]; then
             < /etc/nginx/templates/refresh-js.conf \
             > /etc/nginx/includes/refresh-js.conf
 fi
-
-# stamp out default.conf template
-if [ -z "$PROXY_PASS" ]; then
-    export PROXY_PASS="http://unix:/var/run/example-server.sock"
-    cp /etc/nginx/templates/example-server.conf /etc/nginx/conf.d/
-fi
-export APP_REDIRECT_PATH=$(extract_path "$LOGIN_REDIRECT_URL")
-envsubst '${APP_REDIRECT_PATH},${PROXY_PASS},${SSO_PATH}' \
-        < /etc/nginx/templates/default.conf \
-        > /etc/nginx/conf.d/default.conf
 
 # start nginx
 nginx -g 'daemon off;' &
