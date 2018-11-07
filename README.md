@@ -16,6 +16,7 @@ This repository builds a Docker Image that protects an upstream server using [Ok
 - `CLIENT_SECRET` - The Client Secret be found on the 'General' tab of the Web application that you created earlier in the Okta Developer Console
 - `ISSUER` - Issuer is the URL of the authorization server that will perform authentication. All Developer Accounts have a 'default' authorization server. The issuer is a combination of your Org URL (found in the upper right of the console home page) and /oauth2/default. For example, `https://xxxxx.oktapreview.com/oauth2/default`
 - `LOGIN_REDIRECT_URL` - The Login Redirect URL can be found on the 'General' tab of the Web application that you created earlier in the Okta Developer Console
+- `CLIENT_AUDIENCE` - The Audience can be Found in the 'Settings' of the Authorization services
 
 ### Optional
 

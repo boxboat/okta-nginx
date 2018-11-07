@@ -41,6 +41,11 @@ type jwtResponse struct {
 
 func getConfig() *config {
 	//Populate config from env vars
+	clientAudience := os.Getenv("CLIENT_AUDIENCE")
+	if clientAudience == "" {
+		log.Fatalln("Must specify CLIENT_AUDIENCE env variable - Client Audience can be found on the 'Settings' tab of the Authorization Server.")
+	}
+
 	clientID := os.Getenv("CLIENT_ID")
 	if clientID == "" {
 		log.Fatalln("Must specify CLIENT_ID env variable - Client ID can be found on the 'General' tab of the Web application that you created earlier in the Okta Developer Console.")
@@ -97,7 +102,7 @@ func getConfig() *config {
 
 	//Initialize validator
 	toValidate := map[string]string{}
-	toValidate["aud"] = "api://default"
+	toValidate["aud"] = clientAudience
 	toValidate["cid"] = clientID
 
 	jwtverifierSetup := jwtverifier.JwtVerifier{
