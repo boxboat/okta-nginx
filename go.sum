@@ -1,0 +1,11 @@
+github.com/caleblloyd/okta-jwt-verifier-golang v0.0.0-20180727134137-2d2b68fc61a4 h1:EcwJLGdvQR07K0eiiA/zJyzRhAZhpxg5rwm8kDt74Tw=
+github.com/caleblloyd/okta-jwt-verifier-golang v0.0.0-20180727134137-2d2b68fc61a4/go.mod h1:yDtd8VuJIHxoSBcBKphyq3OQL4P7df3Kc6l0Is/sjlM=
+github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/lestrrat-go/jwx v0.0.0-20180716092526-0e3622ae3e83 h1:mM/qDuuc52P4e/H65w5ILSmgyUalNDoARXIjOCJiEYE=
+github.com/lestrrat-go/jwx v0.0.0-20180716092526-0e3622ae3e83/go.mod h1:iEoxlYfZjvoGpuWwxUz+eR5e6KTJGsaRcy/YNA/UnBk=
+github.com/lestrrat-go/pdebug v0.0.0-20180220043849-39f9a71bcabe h1:S7XSBlgc/eI2v47LkPPVa+infH3FuTS4tPJbqCtJovo=
+github.com/lestrrat-go/pdebug v0.0.0-20180220043849-39f9a71bcabe/go.mod h1:zvUY6gZZVL2nu7NM+/3b51Z/hxyFZCZxV0hvfZ3NJlg=
+github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
+github.com/patrickmn/go-cache v2.1.0+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTKqZju1ZixQ/KpMGzzAfe6+WQ=
+github.com/pkg/errors v0.8.0 h1:WdK/asTD0HN+q6hsWO3/vpuAkAr+tw6aNJNDFFf0+qw=
+github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
