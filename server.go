@@ -41,9 +41,9 @@ type jwtResponse struct {
 
 func getConfig() *config {
 	//Populate config from env vars
-	clientAudience := os.Getenv("CLIENT_AUDIENCE")
+	clientAudience := os.Getenv("AUDIENCE")
 	if clientAudience == "" {
-		log.Fatalln("Must specify CLIENT_AUDIENCE env variable - Client Audience can be found on the 'Settings' tab of the Authorization Server.")
+		log.Fatalln("Must specify AUDIENCE env variable - Audience can be found on the 'Settings' tab of the Authorization Server.")
 	}
 
 	clientID := os.Getenv("CLIENT_ID")
