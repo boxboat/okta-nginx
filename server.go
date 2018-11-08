@@ -103,7 +103,7 @@ func getConfig() *config {
 
 	//Initialize validator
 	toValidate := map[string]string{}
-	toValidate["aud"] = clientAudience
+	toValidate["aud"] = audience
 	toValidate["cid"] = clientID
 
 	jwtverifierSetup := jwtverifier.JwtVerifier{
