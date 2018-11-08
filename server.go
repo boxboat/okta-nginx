@@ -41,11 +41,6 @@ type jwtResponse struct {
 
 func getConfig() *config {
 	//Populate config from env vars
-	clientAudience := os.Getenv("AUDIENCE")
-	if clientAudience == "" {
-		log.Fatalln("Must specify AUDIENCE env variable - Audience can be found on the 'Settings' tab of the Authorization Server.")
-	}
-
 	clientID := os.Getenv("CLIENT_ID")
 	if clientID == "" {
 		log.Fatalln("Must specify CLIENT_ID env variable - Client ID can be found on the 'General' tab of the Web application that you created earlier in the Okta Developer Console.")
@@ -60,6 +55,12 @@ func getConfig() *config {
 	if issuer == "" {
 		log.Fatalln("This is the URL of the authorization server that will perform authentication. All Developer Accounts have a 'default' authorization server. The issuer is a combination of your Org URL (found in the upper right of the console home page) and /oauth2/default. For example, https://dev-1234.oktapreview.com/oauth2/default.")
 	}
+	
+	audience := os.Getenv("AUDIENCE")
+	if audience == "" {
+		log.Fatalln("Must specify AUDIENCE env variable - Audience can be found on the 'Settings' tab of the Authorization Server.  The 'default' authorization server uses the audience 'api://default'")
+	}
+	
 	issuerURL, err := url.Parse(issuer)
 	if err != nil {
 		log.Fatalf("ISSUER is not a valid URL, %v", issuer)
