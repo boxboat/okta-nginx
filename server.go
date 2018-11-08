@@ -55,6 +55,12 @@ func getConfig() *config {
 	if issuer == "" {
 		log.Fatalln("This is the URL of the authorization server that will perform authentication. All Developer Accounts have a 'default' authorization server. The issuer is a combination of your Org URL (found in the upper right of the console home page) and /oauth2/default. For example, https://dev-1234.oktapreview.com/oauth2/default.")
 	}
+	
+	audience := os.Getenv("AUDIENCE")
+	if audience == "" {
+		log.Fatalln("Must specify AUDIENCE env variable - Audience can be found on the 'Settings' tab of the Authorization Server.  The 'default' authorization server uses the audience 'api://default'")
+	}
+	
 	issuerURL, err := url.Parse(issuer)
 	if err != nil {
 		log.Fatalf("ISSUER is not a valid URL, %v", issuer)
@@ -97,7 +103,7 @@ func getConfig() *config {
 
 	//Initialize validator
 	toValidate := map[string]string{}
-	toValidate["aud"] = "api://default"
+	toValidate["aud"] = audience
 	toValidate["cid"] = clientID
 
 	jwtverifierSetup := jwtverifier.JwtVerifier{
