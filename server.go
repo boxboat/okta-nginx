@@ -191,19 +191,27 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 	w.Header().Set("X-Auth-Request-Redirect", "")
 	w.Header().Set("X-Auth-Request-User", "")
 
-	tokenCookie, err := r.Cookie(conf.cookieName)
-	switch {
-	case err == http.ErrNoCookie:
-		w.Header().Set("X-Auth-Request-Redirect", redirectURL)
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	case err != nil:
-		log.Printf("validateCookieHandler: Error parsing cookie, %v", err)
-		w.WriteHeader(http.StatusUnauthorized)
-		return
+	auth := r.Header.Get("Authorization")
+	split := strings.SplitN(auth, " ", 2)
+  var tokenvalue string = ""
+	if len(split) == 2 && strings.EqualFold(split[0], "bearer") {
+		tokenvalue = split[1]
+	} else {
+		tokenCookie, err := r.Cookie(conf.cookieName)
+		switch {
+		case err == http.ErrNoCookie:
+			w.Header().Set("X-Auth-Request-Redirect", redirectURL)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		case err != nil:
+			log.Printf("validateCookieHandler: Error parsing cookie, %v", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+    tokenvalue = tokenCookie.Value
 	}
 
-	jwt, err := conf.verifier.VerifyAccessToken(tokenCookie.Value)
+	jwt, err := conf.verifier.VerifyAccessToken(tokenvalue)
 
 	if err != nil {
 		w.Header().Set("X-Auth-Request-Redirect", redirectURL)
@@ -213,7 +221,7 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 
 	sub, ok := jwt.Claims["sub"]
 	if !ok {
-		log.Printf("validateCookieHandler: Claim 'sub' not included in access token, %v", tokenCookie.Value)
+		log.Printf("validateCookieHandler: Claim 'sub' not included in access token, %v", tokenvalue)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
