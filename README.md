@@ -25,6 +25,7 @@ This repository builds a Docker Image that protects an upstream server using [Ok
 - `INJECT_REFRESH_JS` - Defaults to `true`.  Set to `false` to disable injection of JavaScript that transparently refreshes Access Tokens when they are close to expiring
 - `LISTEN` - Defaults to `80`.  Specify another port to change the listening port number.  See [nginx listen](http://nginx.org/en/docs/http/ngx_http_core_module.html#listen) for options, such as TLS and unix sockets
 - `REQUEST_TIMEOUT` - Defaults to `5`.  Timeout for calling the Okta `token` endpoint to retrieve an Authorization Token
+- `SERVER_NAME` - Defaults to `_`.  See [nginx server_name](http://nginx.org/en/docs/http/ngx_http_core_module.html#server_name) for options.
 - `SSO_PATH` - Defaults to `/sso/`. Path for SSO error and refresh endpoints.  Should include leading and trailing slash
 
 ## Authenticated Headers Passed to Upstream Server
@@ -46,3 +47,20 @@ Any files added to `/etc/nginx/conf.d` will be included in the `http` block.
 ### Adding Configuration to the `server` block
 
 Any content in the file `/etc/nginx/includes/default-server.conf` will be included in the default `server` block.
+
+## Multiple Servers
+
+Multiple servers are supported by incrementing a number starting with 2 to select environment variables.
+
+- Server 2
+    - `LISTEN_2`: required
+    - `SERVER_NAME_2`: required
+    - `PROXY_PASS_2`: required
+    - optionally add configuration to `/etc/nginx/includes/default-server.2.conf`
+- Server N
+    - `LISTEN_N`: required
+    - `SERVER_NAME_N`: required
+    - `PROXY_PASS_N`: required
+    - optionally add configuration to `/etc/nginx/includes/default-server.N.conf`
+
+Multiple servers all use the same Okta Authorization Server and the same `LOGIN_REDIRECT_URL`.  Multiple servers should either be on the same host with different ports, or on subdomains are all valid for `COOKIE_DOMAIN`.

@@ -1,17 +1,5 @@
 #!/bin/sh
 
-extract_scheme () {
-    echo "$1" | sed -r 's|^(https?)://.*$|\1|ig'
-}
-
-extract_host () {
-    echo "$1" | sed -r 's|^https?://([^/]+).*$|\1|ig'
-}
-
-extract_origin () {
-    echo "$1" | sed -r 's|^(https?://[^/]+)(/.*)$|\1|ig'
-}
-
 extract_path () {
     echo "$1" | sed -r 's|^https?://[^/]+([^\?]+).*$|\1|ig'
 }
@@ -48,6 +36,10 @@ export SSO_PATH=$(ensure_path "$SSO_PATH")
 if [ -z "$LISTEN" ]; then
     export LISTEN="80";
 fi
+# set SERVER_NAME
+if [ -z "$SERVER_NAME" ]; then
+    export SERVER_NAME="_";
+fi
 # set PROXY_PASS
 if [ -z "$PROXY_PASS" ]; then
     export PROXY_PASS="http://unix:/var/run/example-server.sock"
@@ -56,15 +48,36 @@ fi
 # set APP_REDIRECT_PATH
 export APP_REDIRECT_PATH=$(extract_path "$LOGIN_REDIRECT_URL")
 
-# stamp out default.conf template
-envsubst '${APP_REDIRECT_PATH},${LISTEN},${PROXY_PASS},${SSO_PATH}' \
+# iterate through server configurations
+env_var_suffix=""
+export SERVER_SUFFIX=""
+i=1
+while : ; do
+    export LISTEN=$(eval echo "\$LISTEN${env_var_suffix}")
+    export PROXY_PASS=$(eval echo "\$PROXY_PASS${env_var_suffix}")
+    export SERVER_NAME=$(eval echo "\$SERVER_NAME${env_var_suffix}")
+    if [ -z "$LISTEN" -o -z "$PROXY_PASS" -o -z "$SERVER_NAME" ]; then
+        break
+    fi
+
+    # generate blank additional server configuration if it doesn't exist
+    if ! [ -f "/etc/nginx/includes/default-server${SERVER_SUFFIX}.conf" ]; then
+        touch "/etc/nginx/includes/default-server${SERVER_SUFFIX}.conf"
+    fi
+
+    # stamp out default.conf template
+    envsubst '${APP_REDIRECT_PATH},${LISTEN},${PROXY_PASS},${SERVER_NAME},${SERVER_SUFFIX},${SSO_PATH}' \
         < /etc/nginx/templates/default.conf \
-        > /etc/nginx/conf.d/default.conf
+        > "/etc/nginx/conf.d/default${SERVER_SUFFIX}.conf"
+
+    i=$((i+1))
+    env_var_suffix="_$i"
+    export SERVER_SUFFIX=".$i"
+done
 
 # stamp out redirect-js.conf template
 if [ "$INJECT_REFRESH_JS" != "false" ]; then
-    app_origin=$(extract_origin "$LOGIN_REDIRECT_URL")
-    export REFRESH_JS=$(/var/okta-nginx/refresh-minify.sh "$app_origin" "$SSO_PATH")
+    export REFRESH_JS=$(/var/okta-nginx/refresh-minify.sh "$SSO_PATH")
     envsubst '${REFRESH_JS}' \
             < /etc/nginx/templates/refresh-js.conf \
             > /etc/nginx/includes/refresh-js.conf
