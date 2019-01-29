@@ -11,7 +11,7 @@
     /// handle window.postMessage event
     function wl(e){
         console.log('wl');
-        if (e.origin !== 'http://localhost:8080'){
+        if (e.origin !== window.location.protocol + "//" + window.location.host){
             return;
         }
         if (e.data === 'ssoRefreshDone'){
@@ -67,8 +67,9 @@
         x.addEventListener("abort", xe);
         x.addEventListener("error", xe);
         x.addEventListener("timeout", xe);
-        x.open("GET", "http://localhost:8080/sso/refresh/check");
+        x.open("GET", "/sso/refresh/check");
         x.timeout=10000;
+        x.withCredentials=true;
         x.send();
     }
     xr();
