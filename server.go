@@ -25,6 +25,7 @@ type config struct {
 	clientID            string        //CLIENT_ID
 	clientSecret        string        //CLIENT_SECRET
 	cookieDomain        string        //COOKIE_DOMAIN
+	cookieDomainCheck   string        //computed
 	cookieName          string        //COOKIE_NAME
 	issuer              string        //ISSUER
 	loginRedirectURL    *url.URL      //LOGIN_REDIRECT_URL
@@ -83,10 +84,12 @@ func getConfig() *config {
 	}
 
 	cookieDomain := strings.TrimLeft(os.Getenv("COOKIE_DOMAIN"), ".")
+	cookieDomainCheck := loginRedirectURL.Hostname()
 	if cookieDomain != "" {
 		if !urlMatchesCookieDomain(loginRedirectURL, cookieDomain) {
 			log.Fatalf("COOKIE_DOMAIN '%v' must be valid for LOGIN_REDIRECT_URL hostname '%v'", cookieDomain, loginRedirectURL.Hostname())
 		}
+		cookieDomainCheck = cookieDomain
 	}
 
 	cookieName := os.Getenv("COOKIE_NAME")
@@ -130,6 +133,7 @@ func getConfig() *config {
 		clientID:            clientID,
 		clientSecret:        clientSecret,
 		cookieDomain:        cookieDomain,
+		cookieDomainCheck:   cookieDomainCheck,
 		cookieName:          cookieName,
 		issuer:              issuer,
 		loginRedirectURL:    loginRedirectURL,
@@ -317,12 +321,8 @@ func callbackHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 		return
 	}
 
-	checkCookieDomain := conf.cookieDomain
-	if checkCookieDomain == "" {
-		checkCookieDomain = conf.loginRedirectURL.Hostname()
-	}
-	if (stateURL.Scheme != "" || stateURL.Host != "") && !urlMatchesCookieDomain(stateURL, checkCookieDomain) {
-		log.Printf("refreshHandler: state paramater '%v' is not valid for COOKIE_DOMAIN '%v'", state, conf.cookieDomain)
+	if (stateURL.Scheme != "" || stateURL.Host != "") && !urlMatchesCookieDomain(stateURL, conf.cookieDomainCheck) {
+		log.Printf("refreshHandler: state paramater '%v' is not valid for COOKIE_DOMAIN '%v'", state, conf.cookieDomainCheck)
 		http.Redirect(w, r, conf.appOrigin+conf.ssoPath+"error?error="+url.QueryEscape("Unauthorized"), http.StatusTemporaryRedirect)
 		return
 	}
@@ -504,21 +504,18 @@ func urlMatchesCookieDomain(matchURL *url.URL, cookieDomain string) bool {
 
 func redirectURL(r *http.Request, conf *config, requestURI string) string {
 	requestURLStr := requestURI
-	if conf.cookieDomain == "" {
-		requestURLStr = conf.appOrigin + requestURLStr
+	requestOriginURL := getRequestOriginURL(r)
+	if requestOriginURL == nil {
+		log.Printf("validateCookieHandler: redirect will not include origin")
 	} else {
-		requestOriginURL := getRequestOriginURL(r)
-		if requestOriginURL == nil {
-			log.Printf("validateCookieHandler: redirect will not include origin")
+		if urlMatchesCookieDomain(requestOriginURL, conf.cookieDomainCheck) {
+			requestURLStr = requestOriginURL.String() + requestURLStr
 		} else {
-			if urlMatchesCookieDomain(requestOriginURL, conf.cookieDomain) {
-				requestURLStr = requestOriginURL.String() + requestURLStr
-			} else {
-				log.Printf("validateCookieHandler: header 'X-Forwarded-Host' hostname '%v' is not valid for COOKIE_DOMAIN '%v'", requestOriginURL.Hostname(), conf.cookieDomain)
-				log.Printf("validateCookieHandler: redirect will not include origin")
-			}
+			log.Printf("validateCookieHandler: header 'X-Forwarded-Host' hostname '%v' is not valid for COOKIE_DOMAIN '%v'", requestOriginURL.Hostname(), conf.cookieDomainCheck)
+			log.Printf("validateCookieHandler: redirect will not include origin")
 		}
 	}
+
 	return conf.oktaLoginBaseURLStr + "&state=" + url.QueryEscape(requestURLStr)
 }
 
