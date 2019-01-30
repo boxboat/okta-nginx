@@ -21,19 +21,18 @@ import (
 const sock = "/var/run/auth.sock"
 
 type config struct {
-	appOrigin         string        //computed
-	clientID          string        //CLIENT_ID
-	clientSecret      string        //CLIENT_SECRET
-	cookieDomain      string        //COOKIE_DOMAIN
-	cookieName        string        //COOKIE_NAME
-	issuer            string        //ISSUER
-	loginRedirectPath string        //computed
-	loginRedirectURL  string        //LOGIN_REDIRECT_URL
-	oktaLoginBaseURL  string        //computed
-	oktaOrigin        string        //computed
-	ssoPath           string        //SSO_PATH
-	requestTimeout    time.Duration //Default of 5 seconds if no env set
-	verifier          *jwtverifier.JwtVerifier
+	appOrigin           string        //computed
+	clientID            string        //CLIENT_ID
+	clientSecret        string        //CLIENT_SECRET
+	cookieDomain        string        //COOKIE_DOMAIN
+	cookieName          string        //COOKIE_NAME
+	issuer              string        //ISSUER
+	loginRedirectURL    *url.URL      //LOGIN_REDIRECT_URL
+	oktaLoginBaseURLStr string        //computed
+	oktaOrigin          string        //computed
+	ssoPath             string        //SSO_PATH
+	requestTimeout      time.Duration //Default of 5 seconds if no env set
+	verifier            *jwtverifier.JwtVerifier
 }
 
 type jwtResponse struct {
@@ -119,7 +118,7 @@ func getConfig() *config {
 		ClaimsToValidate: toValidate,
 	}
 
-	oktaLoginBaseURL := issuer + "/v1/authorize" +
+	oktaLoginBaseURLStr := issuer + "/v1/authorize" +
 		"?client_id=" + url.QueryEscape(clientID) +
 		"&redirect_uri=" + url.QueryEscape(loginRedirect) +
 		"&response_type=code" +
@@ -127,19 +126,18 @@ func getConfig() *config {
 		"&nonce=123"
 
 	return &config{
-		appOrigin:         appOrigin,
-		clientID:          clientID,
-		clientSecret:      clientSecret,
-		cookieDomain:      cookieDomain,
-		cookieName:        cookieName,
-		issuer:            issuer,
-		loginRedirectPath: loginRedirectURL.Path,
-		loginRedirectURL:  loginRedirect,
-		oktaLoginBaseURL:  oktaLoginBaseURL,
-		oktaOrigin:        oktaOrigin,
-		requestTimeout:    requestTimeOutDuration,
-		ssoPath:           ssoPath,
-		verifier:          jwtverifierSetup.New(),
+		appOrigin:           appOrigin,
+		clientID:            clientID,
+		clientSecret:        clientSecret,
+		cookieDomain:        cookieDomain,
+		cookieName:          cookieName,
+		issuer:              issuer,
+		loginRedirectURL:    loginRedirectURL,
+		oktaLoginBaseURLStr: oktaLoginBaseURLStr,
+		oktaOrigin:          oktaOrigin,
+		requestTimeout:      requestTimeOutDuration,
+		ssoPath:             ssoPath,
+		verifier:            jwtverifierSetup.New(),
 	}
 }
 
@@ -155,7 +153,7 @@ func runServer(conf *config) {
 	})
 
 	//Authorization code callback
-	http.HandleFunc(conf.loginRedirectPath, func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(conf.loginRedirectURL.Path, func(w http.ResponseWriter, r *http.Request) {
 		callbackHandler(w, r, conf)
 	})
 
@@ -319,7 +317,11 @@ func callbackHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 		return
 	}
 
-	if (stateURL.Scheme != "" || stateURL.Host != "") && !urlMatchesCookieDomain(stateURL, conf.cookieDomain) {
+	checkCookieDomain := conf.cookieDomain
+	if checkCookieDomain == "" {
+		checkCookieDomain = conf.loginRedirectURL.Hostname()
+	}
+	if (stateURL.Scheme != "" || stateURL.Host != "") && !urlMatchesCookieDomain(stateURL, checkCookieDomain) {
 		log.Printf("refreshHandler: state paramater '%v' is not valid for COOKIE_DOMAIN '%v'", state, conf.cookieDomain)
 		http.Redirect(w, r, conf.appOrigin+conf.ssoPath+"error?error="+url.QueryEscape("Unauthorized"), http.StatusTemporaryRedirect)
 		return
@@ -450,7 +452,7 @@ func getJWT(code string, conf *config) (string, error) {
 	reqBody := []byte("code=" + url.QueryEscape(code) +
 		"&client_id=" + url.QueryEscape(conf.clientID) +
 		"&client_secret=" + url.QueryEscape(conf.clientSecret) +
-		"&redirect_uri=" + url.QueryEscape(conf.loginRedirectURL) +
+		"&redirect_uri=" + url.QueryEscape(conf.loginRedirectURL.String()) +
 		"&grant_type=authorization_code" +
 		"&scope=openid profile")
 
@@ -517,7 +519,7 @@ func redirectURL(r *http.Request, conf *config, requestURI string) string {
 			}
 		}
 	}
-	return conf.oktaLoginBaseURL + "&state=" + url.QueryEscape(requestURLStr)
+	return conf.oktaLoginBaseURLStr + "&state=" + url.QueryEscape(requestURLStr)
 }
 
 func getRequestOriginURL(r *http.Request) *url.URL {
