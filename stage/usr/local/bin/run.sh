@@ -45,6 +45,10 @@ if [ -z "$PROXY_PASS" ]; then
     export PROXY_PASS="http://unix:/var/run/example-server.sock"
     cp /etc/nginx/templates/example-server.conf /etc/nginx/conf.d/
 fi
+# set USE_PROXY_PASS
+if [ -z "$USE_PROXY_PASS" ]; then
+    export USE_PROXY_PASS="true"
+fi
 # set APP_REDIRECT_PATH
 export APP_REDIRECT_PATH=$(extract_path "$LOGIN_REDIRECT_URL")
 
@@ -56,17 +60,27 @@ while : ; do
     export LISTEN=$(eval echo "\$LISTEN${env_var_suffix}")
     export PROXY_PASS=$(eval echo "\$PROXY_PASS${env_var_suffix}")
     export SERVER_NAME=$(eval echo "\$SERVER_NAME${env_var_suffix}")
-    if [ -z "$LISTEN" -o -z "$PROXY_PASS" -o -z "$SERVER_NAME" ]; then
+    export USE_PROXY_PASS=$(eval echo "\$USE_PROXY_PASS${env_var_suffix}")
+    if [ -z "$LISTEN" -o -z "$SERVER_NAME" ]; then
+        break
+    fi
+    if [ "$USE_PROXY_PASS" = "true" -a -z "$PROXY_PASS" ]; then
         break
     fi
 
-    # generate blank additional server configuration if it doesn't exist
-    if ! [ -f "/etc/nginx/includes/default-server${SERVER_SUFFIX}.conf" ]; then
-        touch "/etc/nginx/includes/default-server${SERVER_SUFFIX}.conf"
+    if [ "$USE_PROXY_PASS" = "true" ]; then
+        if ! [ -f "/etc/nginx/includes/default-server${SERVER_SUFFIX}.conf" ]; then
+            touch "/etc/nginx/includes/default-server${SERVER_SUFFIX}.conf"
+        fi
+        envsubst '${PROXY_PASS}' \
+            < /etc/nginx/templates/proxy-pass.conf \
+            > "/etc/nginx/includes/proxy-pass${SERVER_SUFFIX}.conf"
+    else
+        touch "/etc/nginx/includes/proxy-pass${SERVER_SUFFIX}.conf"
     fi
 
     # stamp out default.conf template
-    envsubst '${APP_REDIRECT_PATH},${LISTEN},${PROXY_PASS},${SERVER_NAME},${SERVER_SUFFIX},${SSO_PATH}' \
+    envsubst '${APP_REDIRECT_PATH},${LISTEN},${SERVER_NAME},${SERVER_SUFFIX},${SSO_PATH}' \
         < /etc/nginx/templates/default.conf \
         > "/etc/nginx/conf.d/default${SERVER_SUFFIX}.conf"
 

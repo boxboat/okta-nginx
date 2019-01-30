@@ -27,6 +27,7 @@ This repository builds a Docker Image that protects an upstream server using [Ok
 - `REQUEST_TIMEOUT` - Defaults to `5`.  Timeout for calling the Okta `token` endpoint to retrieve an Authorization Token
 - `SERVER_NAME` - Defaults to `_`.  See [nginx server_name](http://nginx.org/en/docs/http/ngx_http_core_module.html#server_name) for options.
 - `SSO_PATH` - Defaults to `/sso/`. Path for SSO error and refresh endpoints.  Should include leading and trailing slash
+- `USE_PROXY_PASS` - Defaults to `true`.  Set to `false` to use configuration in `server` block instead.
 
 ## Authenticated Headers Passed to Upstream Server
 
@@ -55,12 +56,14 @@ Multiple servers are supported by incrementing a number starting with 2 to selec
 - Server 2
     - `LISTEN_2`: required
     - `SERVER_NAME_2`: required
-    - `PROXY_PASS_2`: required
+    - `PROXY_PASS_2`: required unless `USE_PROXY_PASS_2` is `false`
+    - `USE_PROXY_PASS_2`: optional
     - optionally add configuration to `/etc/nginx/includes/default-server.2.conf`
 - Server N
     - `LISTEN_N`: required
     - `SERVER_NAME_N`: required
-    - `PROXY_PASS_N`: required
+    - `PROXY_PASS_N`: required unless `USE_PROXY_PASS_N` is `false`
+    - `USE_PROXY_PASS_N`: optional
     - optionally add configuration to `/etc/nginx/includes/default-server.N.conf`
 
 Multiple servers all use the same Okta Authorization Server and the same `LOGIN_REDIRECT_URL`.  Multiple servers should either be on the same host with different ports, or on subdomains are all valid for `COOKIE_DOMAIN`.
