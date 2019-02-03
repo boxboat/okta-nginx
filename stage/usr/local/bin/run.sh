@@ -41,7 +41,11 @@ if [ -z "$SERVER_NAME" ]; then
     export SERVER_NAME="_";
 fi
 # set PROXY_PASS
-if [ -z "$PROXY_PASS" ]; then
+rm -f /var/run/example-server.sock
+if [ -z "$PROXY_PASS" \
+    -a ! -f /etc/nginx/includes/default-server.conf \
+    -a ! -f /etc/nginx/includes/proxy-pass.conf \
+]; then
     export PROXY_PASS="http://unix:/var/run/example-server.sock"
     cp /etc/nginx/templates/example-server.conf /etc/nginx/conf.d/
 fi
