@@ -65,6 +65,7 @@ while : ; do
     export PROXY_PASS=$(eval echo "\$PROXY_PASS${env_var_suffix}")
     export SERVER_NAME=$(eval echo "\$SERVER_NAME${env_var_suffix}")
     export USE_PROXY_PASS=$(eval echo "\$USE_PROXY_PASS${env_var_suffix}")
+    export VALIDATE_BOOLEAN_CLAIMS=$(eval echo "\$VALIDATE_BOOLEAN_CLAIMS${env_var_suffix}")
     if [ -z "$LISTEN" -o -z "$SERVER_NAME" ]; then
         break
     fi
@@ -84,7 +85,7 @@ while : ; do
     fi
 
     # stamp out default.conf template
-    envsubst '${APP_REDIRECT_PATH},${LISTEN},${SERVER_NAME},${SERVER_SUFFIX},${SSO_PATH}' \
+    envsubst '${APP_REDIRECT_PATH},${LISTEN},${SERVER_NAME},${SERVER_SUFFIX},${SSO_PATH},${VALIDATE_BOOLEAN_CLAIMS}' \
         < /etc/nginx/templates/default.conf \
         > "/etc/nginx/conf.d/default${SERVER_SUFFIX}.conf"
 
