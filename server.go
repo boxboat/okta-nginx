@@ -229,9 +229,34 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 
 	subStr, ok := sub.(string)
 	if !ok {
-		log.Printf("validateCookieHandler: Unable to convert 'sub' to string")
+		log.Printf("validateCookieHandler: Unable to convert 'sub' to string in access token, %v", tokenCookie.Value)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
+	}
+
+	validateBooleanClaims := strings.TrimSpace(r.Header.Get("X-Okta-Validate-Boolean-Claims"))
+	if validateBooleanClaims != "" {
+		for _, validateBooleanClaim := range strings.Fields(validateBooleanClaims) {
+			claim, ok := jwt.Claims[validateBooleanClaim]
+			if !ok {
+				log.Printf("validateCookieHandler: validateBooleanClaim '%v' not included in access token, %v", validateBooleanClaim, tokenCookie.Value)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
+			claimBool, ok := claim.(bool)
+			if !ok {
+				log.Printf("validateCookieHandler: Unable to convert validateBooleanClaim '%v' to bool in access token, %v", validateBooleanClaim, tokenCookie.Value)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
+			if !claimBool {
+				log.Printf("validateCookieHandler: validateBooleanClaim '%v' is false", validateBooleanClaim)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+		}
 	}
 
 	w.Header().Set("X-Auth-Request-User", subStr)
