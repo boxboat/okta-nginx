@@ -66,7 +66,7 @@ Multiple servers are supported by incrementing a number starting with 2 to selec
     - `SERVER_NAME_N`: required
     - `PROXY_PASS_N`: required unless `USE_PROXY_PASS_N` is `false`
     - `USE_PROXY_PASS_N`: optional
-    - `VALIDATE_BOOLEAN_CLAIMS_2`: optional
+    - `VALIDATE_BOOLEAN_CLAIMS_N`: optional
     - optionally add configuration to `/etc/nginx/includes/default-server.N.conf`
 
 Multiple servers all use the same Okta Authorization Server and the same `LOGIN_REDIRECT_URL`.  Multiple servers should either be on the same host with different ports, or on subdomains are all valid for `COOKIE_DOMAIN`.
