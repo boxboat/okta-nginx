@@ -24,10 +24,11 @@ This repository builds a Docker Image that protects an upstream server using [Ok
 - `COOKIE_NAME` - Defaults to `okta-jwt`. The name of the cookie that holds the Authorization Token
 - `INJECT_REFRESH_JS` - Defaults to `true`.  Set to `false` to disable injection of JavaScript that transparently refreshes Access Tokens when they are close to expiring
 - `LISTEN` - Defaults to `80`.  Specify another port to change the listening port number.  See [nginx listen](http://nginx.org/en/docs/http/ngx_http_core_module.html#listen) for options, such as TLS and unix sockets
+- `LOCATIONS_PROTECTED` - Defaults to `/`.  Comma separated list of [location](http://nginx.org/en/docs/http/ngx_http_core_module.html#location) blocks to protect before passing to `PROXY_PASS`.
+- `LOCATIONS_UNPROTECTED` - Defaults is disabled.  Comma separated list of [location](http://nginx.org/en/docs/http/ngx_http_core_module.html#location) blocks that will not be protected and passed to `PROXY_PASS`.
 - `REQUEST_TIMEOUT` - Defaults to `5`.  Timeout for calling the Okta `token` endpoint to retrieve an Authorization Token
 - `SERVER_NAME` - Defaults to `_`.  See [nginx server_name](http://nginx.org/en/docs/http/ngx_http_core_module.html#server_name) for options.
 - `SSO_PATH` - Defaults to `/sso/`. Path for SSO error and refresh endpoints.  Should include leading and trailing slash
-- `USE_PROXY_PASS` - Defaults to `true`.  Set to `false` to use configuration in `server` block instead.
 - `VALIDATE_CLAIMS_TEMPLATE` - Default is disabled. Go template to execute against claims, must return `true` or `1`.  [sprig](http://masterminds.github.io/sprig/) functions are available.  Example: `{{if or (has "default" .groups) (has "admin" .groups)}}true{{else}}false{{end}}`
 
 ## Authenticated Headers Passed to Upstream Server
@@ -57,15 +58,17 @@ Multiple servers are supported by incrementing a number starting with 2 to selec
 - Server 2
     - `LISTEN_2`: required
     - `SERVER_NAME_2`: required
-    - `PROXY_PASS_2`: required unless `USE_PROXY_PASS_2` is `false`
-    - `USE_PROXY_PASS_2`: optional
+    - `PROXY_PASS_2`: required
+    - `LOCATIONS_PROTECTED_2`: optional
+    - `LOCATIONS_UNPROTECTED_2`: optional
     - `VALIDATE_CLAIMS_TEMPLATE_2`: optional
     - optionally add configuration to `/etc/nginx/includes/default-server.2.conf`
 - Server N
     - `LISTEN_N`: required
     - `SERVER_NAME_N`: required
-    - `PROXY_PASS_N`: required unless `USE_PROXY_PASS_N` is `false`
-    - `USE_PROXY_PASS_N`: optional
+    - `PROXY_PASS_N`: required
+    - `LOCATIONS_PROTECTED_N`: optional
+    - `LOCATIONS_UNPROTECTED_N`: optional
     - `VALIDATE_CLAIMS_TEMPLATE_N`: optional
     - optionally add configuration to `/etc/nginx/includes/default-server.N.conf`
 
