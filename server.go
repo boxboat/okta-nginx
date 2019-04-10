@@ -13,8 +13,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"text/template"
 	"time"
 
+	"github.com/Masterminds/sprig"
 	jwtverifier "github.com/caleblloyd/okta-jwt-verifier-golang"
 )
 
@@ -35,6 +38,9 @@ type config struct {
 	requestTimeout      time.Duration //Default of 5 seconds if no env set
 	verifier            *jwtverifier.JwtVerifier
 }
+
+var templateCache = make(map[string]*template.Template)
+var templateCacheMu = &sync.Mutex{}
 
 type jwtResponse struct {
 	AccessToken string `json:"access_token"`
@@ -234,28 +240,28 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 		return
 	}
 
-	validateBooleanClaims := strings.TrimSpace(r.Header.Get("X-Okta-Validate-Boolean-Claims"))
-	if validateBooleanClaims != "" {
-		for _, validateBooleanClaim := range strings.Fields(validateBooleanClaims) {
-			claim, ok := jwt.Claims[validateBooleanClaim]
-			if !ok {
-				log.Printf("validateCookieHandler: validateBooleanClaim '%v' not included in access token, %v", validateBooleanClaim, tokenCookie.Value)
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
+	validateClaimsTemplate := strings.TrimSpace(r.Header.Get("X-Okta-Validate-Claims-Template"))
+	if validateClaimsTemplate != "" {
+		t, err := getTemplate(validateClaimsTemplate)
+		if err != nil {
+			log.Printf("validateCookieHandler: validateClaimsTemplate failed to parse template: '%v', error: %v", validateClaimsTemplate, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
-			claimBool, ok := claim.(bool)
-			if !ok {
-				log.Printf("validateCookieHandler: Unable to convert validateBooleanClaim '%v' to bool in access token, %v", validateBooleanClaim, tokenCookie.Value)
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
+		var resultBytes bytes.Buffer
+		if err := t.Execute(&resultBytes, jwt.Claims); err != nil {
+			claimsJSON, _ := json.Marshal(jwt.Claims)
+			log.Printf("validateCookieHandler: validateClaimsTemplate failed to execute template: '%v', data: '%v', error: '%v'", validateClaimsTemplate, claimsJSON, err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		resultString := strings.ToLower(strings.TrimSpace(resultBytes.String()))
 
-			if !claimBool {
-				log.Printf("validateCookieHandler: validateBooleanClaim '%v' is false", validateBooleanClaim)
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
+		if resultString != "true" && resultString != "1" {
+			log.Printf("validateCookieHandler: validateClaimsTemplate template: '%v', result: '%v', sub: '%v'", validateClaimsTemplate, resultString, subStr)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
 		}
 	}
 
@@ -558,4 +564,18 @@ func getRequestOriginURL(r *http.Request) *url.URL {
 	}
 	log.Printf("getRequestOriginURL: headers 'X-Forwarded-Proto' and/or 'X-Forwarded-Host' not set")
 	return nil
+}
+
+func getTemplate(templateText string) (*template.Template, error) {
+	templateCacheMu.Lock()
+	defer templateCacheMu.Unlock()
+	t, ok := templateCache[templateText]
+	if ok {
+		return t, nil
+	}
+	t, err := template.New("").Funcs(sprig.TxtFuncMap()).Parse(templateText)
+	if err != nil {
+		return nil, err
+	}
+	return t, nil
 }
