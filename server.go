@@ -157,8 +157,8 @@ func main() {
 
 func runServer(conf *config) {
 
-	//Validate cookie on each request
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	//Validate cookie on /auth/validate requests
+	http.HandleFunc("/auth/validate", func(w http.ResponseWriter, r *http.Request) {
 		validateCookieHandler(w, r, conf)
 	})
 
@@ -209,7 +209,7 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 	tokenCookie, err := r.Cookie(conf.cookieName)
 	switch {
 	case err == http.ErrNoCookie:
-		w.Header().Set("X-Auth-Request-Redirect", redirectURL(r, conf, r.URL.RequestURI()))
+		w.Header().Set("X-Auth-Request-Redirect", redirectURL(r, conf, r.Header.Get("X-Okta-Nginx-Request-Uri")))
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	case err != nil:
@@ -221,7 +221,7 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 	jwt, err := conf.verifier.VerifyAccessToken(tokenCookie.Value)
 
 	if err != nil {
-		w.Header().Set("X-Auth-Request-Redirect", redirectURL(r, conf, r.URL.RequestURI()))
+		w.Header().Set("X-Auth-Request-Redirect", redirectURL(r, conf, r.Header.Get("X-Okta-Nginx-Request-Uri")))
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -240,7 +240,7 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 		return
 	}
 
-	validateClaimsTemplate := strings.TrimSpace(r.Header.Get("X-Okta-Validate-Claims-Template"))
+	validateClaimsTemplate := strings.TrimSpace(r.Header.Get("X-Okta-Nginx-Validate-Claims-Template"))
 	if validateClaimsTemplate != "" {
 		t, err := getTemplate(validateClaimsTemplate)
 		if err != nil {
@@ -537,13 +537,13 @@ func redirectURL(r *http.Request, conf *config, requestURI string) string {
 	requestURLStr := requestURI
 	requestOriginURL := getRequestOriginURL(r)
 	if requestOriginURL == nil {
-		log.Printf("validateCookieHandler: redirect will not include origin")
+		log.Printf("redirectURL: redirect will not include origin")
 	} else {
 		if urlMatchesCookieDomain(requestOriginURL, conf.cookieDomainCheck) {
 			requestURLStr = requestOriginURL.String() + requestURLStr
 		} else {
-			log.Printf("validateCookieHandler: header 'X-Forwarded-Host' hostname '%v' is not valid for COOKIE_DOMAIN '%v'", requestOriginURL.Hostname(), conf.cookieDomainCheck)
-			log.Printf("validateCookieHandler: redirect will not include origin")
+			log.Printf("redirectURL: header 'X-Forwarded-Host' hostname '%v' is not valid for COOKIE_DOMAIN '%v'", requestOriginURL.Hostname(), conf.cookieDomainCheck)
+			log.Printf("redirectURL: redirect will not include origin")
 		}
 	}
 
