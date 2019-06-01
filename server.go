@@ -26,16 +26,17 @@ import (
 const sock = "/var/run/auth.sock"
 
 type config struct {
-	appOrigin           string        //computed
-	clientID            string        //CLIENT_ID
-	clientSecret        string        //CLIENT_SECRET
-	cookieDomain        string        //COOKIE_DOMAIN
-	cookieDomainCheck   string        //computed
-	cookieName          string        //COOKIE_NAME
-	issuer              string        //ISSUER
-	loginRedirectURL    *url.URL      //LOGIN_REDIRECT_URL
-	oktaLoginBaseURLStr string        //computed
-	oktaOrigin          string        //computed
+	appOrigin           string   //computed
+	clientID            string   //CLIENT_ID
+	clientSecret        string   //CLIENT_SECRET
+	cookieDomain        string   //COOKIE_DOMAIN
+	cookieDomainCheck   string   //computed
+	cookieName          string   //COOKIE_NAME
+	issuer              string   //ISSUER
+	loginRedirectURL    *url.URL //LOGIN_REDIRECT_URL
+	oktaLoginBaseURLStr string   //computed
+	oktaOrigin          string   //computed
+	tokenEndpoint       string
 	ssoPath             string        //SSO_PATH
 	requestTimeout      time.Duration //Default of 5 seconds if no env set
 	verifier            *jwtverifier.JwtVerifier
@@ -144,6 +145,7 @@ func getConfig() *config {
 		"&nonce=123"
 
 	return &config{
+		tokenEndpoint:       metaData["token_endpoint"].(string),
 		appOrigin:           appOrigin,
 		clientID:            clientID,
 		clientSecret:        clientSecret,
@@ -499,7 +501,7 @@ func getJWT(code string, conf *config) (string, error) {
 		"&grant_type=authorization_code" +
 		"&scope=openid profile")
 
-	req, err := http.NewRequest("POST", conf.issuer+"/v1/token", bytes.NewBuffer(reqBody))
+	req, err := http.NewRequest("POST", conf.tokenEndpoint, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return "", err
 	}
