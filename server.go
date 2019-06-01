@@ -122,7 +122,7 @@ func getConfig() *config {
 	metaData, err := getMetaData(issuer)
 
 	if err != nil {
-		log.Fatal("Could not retrieve metadata from issuer uri.")
+		log.Fatal("Could not retrieve metadata from Issuer URL.")
 	}
 
 	//Initialize validator
