@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net"
+
 	"net/http"
 	"net/url"
 	"os"
@@ -43,7 +45,7 @@ var templateCache = make(map[string]*template.Template)
 var templateCacheMu = &sync.Mutex{}
 
 type jwtResponse struct {
-	AccessToken string `json:"access_token"`
+	IdToken string `json:"id_token"`
 }
 
 func getConfig() *config {
@@ -117,17 +119,24 @@ func getConfig() *config {
 	appOrigin := loginRedirectURL.Scheme + "://" + loginRedirectURL.Host
 	oktaOrigin := issuerURL.Scheme + "://" + issuerURL.Host
 
+	metaData, err := getMetaData(issuer)
+
+	if err != nil {
+		log.Fatal("Could not retrieve metadata from issuer uri.")
+	}
+
 	//Initialize validator
 	toValidate := map[string]string{}
 	toValidate["aud"] = audience
 	toValidate["cid"] = clientID
+	toValidate["nonce"] = "123"
 
 	jwtverifierSetup := jwtverifier.JwtVerifier{
 		Issuer:           issuer,
 		ClaimsToValidate: toValidate,
 	}
 
-	oktaLoginBaseURLStr := issuer + "/v1/authorize" +
+	oktaLoginBaseURLStr := metaData["authorization_endpoint"].(string) +
 		"?client_id=" + url.QueryEscape(clientID) +
 		"&redirect_uri=" + url.QueryEscape(loginRedirect) +
 		"&response_type=code" +
@@ -182,7 +191,6 @@ func runServer(conf *config) {
 		errorHandler(w, r, conf)
 	})
 
-	//Listen on unix socket instead of http
 	removeSockIfExists()
 	unixListener, err := net.Listen("unix", sock)
 	if err != nil {
@@ -218,7 +226,7 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 		return
 	}
 
-	jwt, err := conf.verifier.VerifyAccessToken(tokenCookie.Value)
+	jwt, err := conf.verifier.VerifyIdToken(tokenCookie.Value)
 
 	if err != nil {
 		w.Header().Set("X-Auth-Request-Redirect", redirectURL(r, conf, r.Header.Get("X-Okta-Nginx-Request-Uri")))
@@ -298,6 +306,10 @@ func callbackHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 	}
 
 	jwtStr, err := getJWT(code, conf)
+	if jwtStr == "" {
+		http.SetCookie(w, unsetCookie)
+		http.Redirect(w, r, conf.appOrigin+conf.ssoPath+"error?error="+url.QueryEscape("JWT token came empty."), http.StatusTemporaryRedirect)
+	}
 	//Redirect if error getting JWT
 	if err != nil {
 		log.Printf("callbackHandler: Error in getJWT, %v", err)
@@ -306,7 +318,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 		return
 	}
 
-	jwt, err := conf.verifier.VerifyAccessToken(jwtStr)
+	jwt, err := conf.verifier.VerifyIdToken(jwtStr)
 	if err != nil {
 		log.Printf("refreshHandler: JWT Validation Error, %v", err)
 		http.SetCookie(w, unsetCookie)
@@ -374,7 +386,7 @@ func refreshCheckHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 		return
 	}
 
-	jwt, err := conf.verifier.VerifyAccessToken(tokenCookie.Value)
+	jwt, err := conf.verifier.VerifyIdToken(tokenCookie.Value)
 
 	if err != nil {
 		log.Printf("refreshCheckHandler: JWT Validation Error, %v", err)
@@ -508,11 +520,12 @@ func getJWT(code string, conf *config) (string, error) {
 	//200 == authorization succeeded
 	if resp.StatusCode == http.StatusOK {
 		jsonResponse := &jwtResponse{}
+
 		err = json.Unmarshal(bodyBytes, &jsonResponse)
 		if err != nil {
 			return "", err
 		}
-		return jsonResponse.AccessToken, nil
+		return jsonResponse.IdToken, nil
 	}
 
 	bodyStr := string(bodyBytes)
@@ -578,4 +591,21 @@ func getTemplate(templateText string) (*template.Template, error) {
 		return nil, err
 	}
 	return t, nil
+}
+
+func getMetaData(url string) (map[string]interface{}, error) {
+	metaDataUrl := url + "/.well-known/openid-configuration"
+
+	resp, err := http.Get(metaDataUrl)
+
+	if err != nil {
+		return nil, fmt.Errorf("request for metadata was not successful: %s", err.Error())
+	}
+
+	defer resp.Body.Close()
+
+	md := make(map[string]interface{})
+	json.NewDecoder(resp.Body).Decode(&md)
+
+	return md, nil
 }
