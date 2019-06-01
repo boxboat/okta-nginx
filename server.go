@@ -236,14 +236,14 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 
 	sub, ok := jwt.Claims["sub"]
 	if !ok {
-		log.Printf("validateCookieHandler: Claim 'sub' not included in access token, %v", tokenCookie.Value)
+		log.Printf("validateCookieHandler: Claim 'sub' not included in id token, %v", tokenCookie.Value)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	subStr, ok := sub.(string)
 	if !ok {
-		log.Printf("validateCookieHandler: Unable to convert 'sub' to string in access token, %v", tokenCookie.Value)
+		log.Printf("validateCookieHandler: Unable to convert 'sub' to string in id token, %v", tokenCookie.Value)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -329,7 +329,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 	exp, ok := jwt.Claims["exp"]
 	if !ok {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("refreshHandler: Claim 'exp' not included in access token, %v", jwtStr)
+		log.Printf("refreshHandler: Claim 'exp' not included in id token, %v", jwtStr)
 		return
 	}
 
@@ -396,7 +396,7 @@ func refreshCheckHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 
 	exp, ok := jwt.Claims["exp"]
 	if !ok {
-		log.Printf("refreshCheckHandler: Claim 'exp' not included in access token, %v", tokenCookie.Value)
+		log.Printf("refreshCheckHandler: Claim 'exp' not included in id token, %v", tokenCookie.Value)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -486,7 +486,7 @@ func errorHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 	}
 }
 
-//getJWT queries the okta server with an access code.  A valid request will return a JWT access token.
+//getJWT queries the okta server with an access code.  A valid request will return a JWT id token.
 func getJWT(code string, conf *config) (string, error) {
 	client := &http.Client{
 		Timeout: time.Second * conf.requestTimeout,
