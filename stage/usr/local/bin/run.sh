@@ -8,6 +8,14 @@ ensure_path () {
     echo "/$1/" | sed -r 's:(^//|//$):/:ig'
 }
 
+to_lower () {
+    echo "$1" | tr '[:upper:]' '[:lower:]'
+}
+
+alpha_numeric_underscore () {
+    echo "$1" | sed -r 's/[^a-z0-9_]/_/ig'
+}
+
 # start okta-nginx
 okta-nginx &
 okta_verify_pid=$!
@@ -37,7 +45,7 @@ export APP_REDIRECT_PATH=$(extract_path "$LOGIN_REDIRECT_URL")
 
 # iterate through server configurations
 env_var_suffix=""
-env_vars="LISTEN LOCATIONS_PROTECTED LOCATIONS_UNPROTECTED PROXY_PASS SERVER_NAME VALIDATE_CLAIMS_TEMPLATE"
+env_vars="LISTEN LOCATIONS_PROTECTED LOCATIONS_UNPROTECTED PROXY_PASS PROXY_SET_HEADER_NAMES PROXY_SET_HEADER_VALUES SERVER_NAME VALIDATE_CLAIMS_TEMPLATE"
 export SERVER_SUFFIX=""
 i=1
 while : ; do
@@ -98,8 +106,21 @@ while : ; do
     done
     unset IFS
 
+    if [ ! -z "${PROXY_SET_HEADER_NAMES+x}" \
+        -a ! -z "${PROXY_SET_HEADER_VALUES+x}" ]; then
+        IFS=','
+        for header_name in ${PROXY_SET_HEADER_NAMES}; do
+            auth_request_var=$(alpha_numeric_underscore $(to_lower $header_name))
+            line="auth_request_set \$auth_request_${auth_request_var} \$upstream_http_${auth_request_var};"
+            sed -i "/^}\$/i $line" "/etc/nginx/includes/proxy-pass-protected${SERVER_SUFFIX}.conf"
+            line="proxy_set_header ${header_name} \$auth_request_${auth_request_var};"
+            sed -i "/^}\$/i $line" "/etc/nginx/includes/proxy-pass-protected${SERVER_SUFFIX}.conf"
+        done
+        unset IFS
+    fi
+
     # stamp out default.conf template
-    envsubst '${APP_REDIRECT_PATH},${LISTEN},${SERVER_NAME},${SERVER_SUFFIX},${SSO_PATH},${VALIDATE_CLAIMS_TEMPLATE}' \
+    envsubst '${APP_REDIRECT_PATH},${LISTEN},${PROXY_SET_HEADER_NAMES},${PROXY_SET_HEADER_VALUES},${SERVER_NAME},${SERVER_SUFFIX},${SSO_PATH},${VALIDATE_CLAIMS_TEMPLATE}' \
         < /etc/nginx/templates/default.conf \
         > "/etc/nginx/conf.d/default${SERVER_SUFFIX}.conf"
 

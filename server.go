@@ -265,6 +265,28 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 		}
 	}
 
+	setHeaderNames := strings.Split(r.Header.Get("X-Okta-Nginx-Proxy-Set-Header-Names"), ",")
+	setHeaderValues := strings.Split(r.Header.Get("X-Okta-Nginx-Proxy-Set-Header-Values"), ",")
+	if (setHeaderNames[0] != "" && setHeaderValues[0] != "" && len(setHeaderNames) == len(setHeaderValues)) {
+		for i:=0; i<len(setHeaderNames); i++ {
+			t, err := getTemplate(setHeaderValues[i])
+			if err != nil {
+				log.Printf("validateCookieHandler: setHeaderValues failed to parse template: '%v', error: %v", validateClaimsTemplate, err)
+				continue
+			}
+
+			var resultBytes bytes.Buffer
+			if err := t.Execute(&resultBytes, jwt.Claims); err != nil {
+				claimsJSON, _ := json.Marshal(jwt.Claims)
+				log.Printf("validateCookieHandler: setHeaderValues failed to execute template: '%v', data: '%v', error: '%v'", validateClaimsTemplate, claimsJSON, err)
+				continue
+			}
+			resultString := strings.ToLower(strings.TrimSpace(resultBytes.String()))
+
+			w.Header().Set(setHeaderNames[i], resultString)
+		}
+	}
+
 	w.Header().Set("X-Auth-Request-User", subStr)
 	w.WriteHeader(http.StatusOK)
 }

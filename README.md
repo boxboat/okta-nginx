@@ -26,6 +26,8 @@ This repository builds a Docker Image that protects an upstream server using [Ok
 - `LISTEN` - Defaults to `80`.  Specify another port to change the listening port number.  See [nginx listen](http://nginx.org/en/docs/http/ngx_http_core_module.html#listen) for options, such as TLS and unix sockets
 - `LOCATIONS_PROTECTED` - Defaults to `/`.  Comma separated list of [location](http://nginx.org/en/docs/http/ngx_http_core_module.html#location) blocks to protect before passing to `PROXY_PASS`.
 - `LOCATIONS_UNPROTECTED` - Defaults is disabled.  Comma separated list of [location](http://nginx.org/en/docs/http/ngx_http_core_module.html#location) blocks that will not be protected and passed to `PROXY_PASS`.
+- `PROXY_SET_HEADER_NAMES` - Default is none.  Comma separated list of headers to add that will be passed upstream.  Must be accompanied by `PROXY_SET_HEADER_VALUES`.
+- `PROXY_SET_HEADER_VALUES` - Default is none.  Comma separated list of values to associate with `PROXY_SET_HEADER_NAMES`.  Values are Go templates that execute against claims, for example `{{.groups}}`.
 - `REQUEST_TIMEOUT` - Defaults to `5`.  Timeout for calling the Okta `token` endpoint to retrieve an Authorization Token
 - `SERVER_NAME` - Defaults to `_`.  See [nginx server_name](http://nginx.org/en/docs/http/ngx_http_core_module.html#server_name) for options.
 - `SSO_PATH` - Defaults to `/sso/`. Path for SSO error and refresh endpoints.  Should include leading and trailing slash
@@ -61,6 +63,8 @@ Multiple servers are supported by incrementing a number starting with 2 to selec
     - `PROXY_PASS_2`: required
     - `LOCATIONS_PROTECTED_2`: optional
     - `LOCATIONS_UNPROTECTED_2`: optional
+    - `PROXY_SET_HEADER_NAMES_2`: optional
+    - `PROXY_SET_HEADER_VALUES_2`: optional
     - `VALIDATE_CLAIMS_TEMPLATE_2`: optional
     - optionally add configuration to `/etc/nginx/includes/default-server.2.conf`
 - Server N
@@ -69,6 +73,8 @@ Multiple servers are supported by incrementing a number starting with 2 to selec
     - `PROXY_PASS_N`: required
     - `LOCATIONS_PROTECTED_N`: optional
     - `LOCATIONS_UNPROTECTED_N`: optional
+    - `PROXY_SET_HEADER_NAMES_N`: optional
+    - `PROXY_SET_HEADER_VALUES_N`: optional
     - `VALIDATE_CLAIMS_TEMPLATE_N`: optional
     - optionally add configuration to `/etc/nginx/includes/default-server.N.conf`
 
