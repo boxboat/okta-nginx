@@ -11,6 +11,7 @@ fi
 docker run \
     --rm \
     --name "okta-nginx" \
+    -e "APP_POST_LOGIN_URL=$APP_POST_LOGIN_URL" \
     -e "AUDIENCE=$AUDIENCE" \
     -e "CLIENT_ID=$CLIENT_ID" \
     -e "CLIENT_SECRET=$CLIENT_SECRET" \

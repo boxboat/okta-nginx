@@ -24,6 +24,7 @@ import (
 const sock = "/var/run/auth.sock"
 
 type config struct {
+	appPostLoginURL     *url.URL      //APP_POST_LOGIN_URL
 	appOrigin           string        //computed
 	clientID            string        //CLIENT_ID
 	clientSecret        string        //CLIENT_SECRET
@@ -48,6 +49,16 @@ type jwtResponse struct {
 
 func getConfig() *config {
 	//Populate config from env vars
+	var appPostLoginURL *url.URL
+	var err error
+	appPostLogin := os.Getenv("APP_POST_LOGIN_URL")
+	if appPostLogin != "" {
+		appPostLoginURL, err = url.Parse(appPostLogin)
+		if err != nil {
+			log.Fatalf("APP_POST_LOGIN_URL is not a valid URL, %v", appPostLogin)
+		}
+	}
+
 	clientID := os.Getenv("CLIENT_ID")
 	if clientID == "" {
 		log.Fatalln("Must specify CLIENT_ID env variable - Client ID can be found on the 'General' tab of the Web application that you created earlier in the Okta Developer Console.")
@@ -135,6 +146,7 @@ func getConfig() *config {
 		"&nonce=123"
 
 	return &config{
+		appPostLoginURL:     appPostLoginURL,
 		appOrigin:           appOrigin,
 		clientID:            clientID,
 		clientSecret:        clientSecret,
@@ -267,8 +279,8 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 
 	setHeaderNames := strings.Split(r.Header.Get("X-Okta-Nginx-Proxy-Set-Header-Names"), ",")
 	setHeaderValues := strings.Split(r.Header.Get("X-Okta-Nginx-Proxy-Set-Header-Values"), ",")
-	if (setHeaderNames[0] != "" && setHeaderValues[0] != "" && len(setHeaderNames) == len(setHeaderValues)) {
-		for i:=0; i<len(setHeaderNames); i++ {
+	if setHeaderNames[0] != "" && setHeaderValues[0] != "" && len(setHeaderNames) == len(setHeaderValues) {
+		for i := 0; i < len(setHeaderNames); i++ {
 			t, err := getTemplate(setHeaderValues[i])
 			if err != nil {
 				log.Printf("validateCookieHandler: setHeaderValues failed to parse template: '%v', error: %v", validateClaimsTemplate, err)
@@ -567,6 +579,15 @@ func redirectURL(r *http.Request, conf *config, requestURI string) string {
 			log.Printf("redirectURL: header 'X-Forwarded-Host' hostname '%v' is not valid for COOKIE_DOMAIN '%v'", requestOriginURL.Hostname(), conf.cookieDomainCheck)
 			log.Printf("redirectURL: redirect will not include origin")
 		}
+	}
+
+	if conf.appPostLoginURL != nil {
+		appPostLoginStruct := *conf.appPostLoginURL
+		appPostLoginURL := &appPostLoginStruct
+		q := appPostLoginURL.Query()
+		q.Set("state", requestURLStr)
+		appPostLoginURL.RawQuery = q.Encode()
+		requestURLStr = appPostLoginURL.String()
 	}
 
 	return conf.oktaLoginBaseURLStr + "&state=" + url.QueryEscape(requestURLStr)
