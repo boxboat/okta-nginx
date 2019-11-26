@@ -1,2 +1,5 @@
+.vscode
+
 /okta-nginx
+/server
 /vars.env
