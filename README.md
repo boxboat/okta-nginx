@@ -16,7 +16,7 @@ This repository builds a Docker Image that protects an upstream server using [Ok
 - `CLIENT_SECRET` - The Client Secret be found on the 'General' tab of the Web application that you created earlier in the Okta Developer Console
 - `ISSUER` - Issuer is the URL of the authorization server that will perform authentication. All Developer Accounts have a 'default' authorization server. The issuer is a combination of your Org URL (found in the upper right of the console home page) and /oauth2/default. For example, `https://xxxxx.oktapreview.com/oauth2/default`
 - `AUDIENCE` - The Audience can be found on the 'Settings' tab of the Authorization Server.  The 'default' authorization server uses the audience `api://default`
-- `LOGIN_REDIRECT_URL` - The Login Redirect URL can be found on the 'General' tab of the Web application that you created earlier in the Okta Developer Console
+- `LOGIN_REDIRECT_URL` - Must be on the 'General' tab of the Web application that you created earlier in the Okta Developer Console.  Path should be `/sso/authorization-code/callback`, or `${SSO_PATH}/authorization-code/callback` if `SSO_PATH` is set.
 
 ### Optional
 
@@ -24,6 +24,8 @@ This repository builds a Docker Image that protects an upstream server using [Ok
 - `COOKIE_DOMAIN` - Defaults to current domain only.  Set in order to allow use on subdomains.
 - `COOKIE_NAME` - Defaults to `okta-jwt`. The name of the cookie that holds the Authorization Token
 - `INJECT_REFRESH_JS` - Defaults to `true`.  Set to `false` to disable injection of JavaScript that transparently refreshes Access Tokens when they are close to expiring
+- `ENDPOINT_AUTHORIZE` - Defaults to `${ISSUER}/v1/authorize`.  Alternate endpoint to redirect to for authorization.
+- `ENDPOINT_TOKEN` - Defaults to `${ISSUER}/v1/token`.  Alternate endpoint to retrieve token from.
 - `LISTEN` - Defaults to `80`.  Specify another port to change the listening port number.  See [nginx listen](http://nginx.org/en/docs/http/ngx_http_core_module.html#listen) for options, such as TLS and unix sockets
 - `LOCATIONS_PROTECTED` - Defaults to `/`.  Comma separated list of [location](http://nginx.org/en/docs/http/ngx_http_core_module.html#location) blocks to protect before passing to `PROXY_PASS`.
 - `LOCATIONS_UNPROTECTED` - Defaults is disabled.  Comma separated list of [location](http://nginx.org/en/docs/http/ngx_http_core_module.html#location) blocks that will not be protected and passed to `PROXY_PASS`.
@@ -62,6 +64,10 @@ Multiple servers are supported by incrementing a number starting with 2 to selec
     - `LISTEN_2`: required
     - `SERVER_NAME_2`: required
     - `PROXY_PASS_2`: required
+    - `LOGIN_REDIRECT_URL_2` required
+    - `APP_POST_LOGIN_URL_2` optional
+    - `COOKIE_DOMAIN_2` optional
+    - `COOKIE_NAME_2` optional
     - `LOCATIONS_PROTECTED_2`: optional
     - `LOCATIONS_UNPROTECTED_2`: optional
     - `PROXY_SET_HEADER_NAMES_2`: optional
@@ -72,6 +78,10 @@ Multiple servers are supported by incrementing a number starting with 2 to selec
     - `LISTEN_N`: required
     - `SERVER_NAME_N`: required
     - `PROXY_PASS_N`: required
+    - `LOGIN_REDIRECT_URL_N` required
+    - `APP_POST_LOGIN_URL_N` optional
+    - `COOKIE_DOMAIN_N` optional
+    - `COOKIE_NAME_N` optional
     - `LOCATIONS_PROTECTED_N`: optional
     - `LOCATIONS_UNPROTECTED_N`: optional
     - `PROXY_SET_HEADER_NAMES_N`: optional
