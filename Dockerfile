@@ -14,7 +14,9 @@ RUN cd /root/okta-nginx/ \
 FROM nginx:1.14.0-alpine
 
 RUN apk add --no-cache \
-        ca-certificates
+        ca-certificates \
+        curl \
+        jq
 
 COPY --from=build /root/okta-nginx/okta-nginx /usr/local/bin/okta-nginx
 

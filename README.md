@@ -34,6 +34,8 @@ This repository builds a Docker Image that protects an upstream server using [Ok
 - `REQUEST_TIMEOUT` - Defaults to `5`.  Timeout for calling the Okta `token` endpoint to retrieve an Authorization Token
 - `SERVER_NAME` - Defaults to `_`.  See [nginx server_name](http://nginx.org/en/docs/http/ngx_http_core_module.html#server_name) for options.
 - `SSO_PATH` - Defaults to `/sso/`. Path for SSO error and refresh endpoints.  Should include leading and trailing slash
+- `UPDATE_SCRIPT` - Default is none.  If desired, set to the full path of an executable shell script that updates the configuration.  One parameter will be passed to the script, it will be `true` on the first update and `false` on subsequent updates.
+- `UPDATE_PERIOD_SECONDS` - Defaults to `60`.  If `UPDATE_SCRIPT` is defined, it will be called at startup, then every `UPDATE_PERIOD_SECONDS` to refresh the configuration.
 - `VALIDATE_CLAIMS_TEMPLATE` - Default is disabled. Go template to execute against claims, must return `true` or `1`.  [sprig](http://masterminds.github.io/sprig/) functions are available.  Example: `{{if or (has "default" .groups) (has "admin" .groups)}}true{{else}}false{{end}}`
 
 ## Authenticated Headers Passed to Upstream Server

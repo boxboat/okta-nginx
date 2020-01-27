@@ -529,7 +529,7 @@ func removeSockIfExists() {
 }
 
 func urlMatchesCookieDomain(matchURL *url.URL, cookieDomain string) bool {
-	return cookieDomain != "" && (matchURL.Hostname() == cookieDomain || strings.HasSuffix(matchURL.Hostname(), "."+cookieDomain))
+	return cookieDomain == "" || matchURL.Hostname() == cookieDomain || strings.HasSuffix(matchURL.Hostname(), "."+cookieDomain)
 }
 
 func redirectURL(r *http.Request, conf *config, requestURI string) string {
