@@ -1,0 +1,19 @@
+language: go
+sudo: required
+dist: trusty
+go:
+  - 1.11
+
+branches:
+  only:
+    - develop
+    - master
+
+services:
+  - docker
+
+script:
+  - ./docker-build.sh
+
+notifications:
+email: false

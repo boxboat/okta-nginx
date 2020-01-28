@@ -2,7 +2,6 @@
 /// this code is minifed by refresh-minify.sh
 /// all comments should start with 3 forward slashes
 /// all statements should end in semicolons
-/// the app origin should be referred to as http://localhost:8080
 /// the sso path should be referred to as /sso/
 (function(){
     /// iframe variable
@@ -11,7 +10,7 @@
     /// handle window.postMessage event
     function wl(e){
         console.log('wl');
-        if (e.origin !== 'http://localhost:8080'){
+        if (e.origin !== window.location.protocol + "//" + window.location.host){
             return;
         }
         if (e.data === 'ssoRefreshDone'){
@@ -67,8 +66,9 @@
         x.addEventListener("abort", xe);
         x.addEventListener("error", xe);
         x.addEventListener("timeout", xe);
-        x.open("GET", "http://localhost:8080/sso/refresh/check");
+        x.open("GET", "/sso/refresh/check");
         x.timeout=10000;
+        x.withCredentials=true;
         x.send();
     }
     xr();

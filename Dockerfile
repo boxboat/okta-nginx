@@ -1,8 +1,13 @@
-FROM golang:1.10.3-alpine3.8 AS build
+FROM golang:1.12.4-alpine3.9 AS build
 
-COPY / /go/src/github.com/boxboat/okta-nginx/
+ENV CGO_ENABLED=0
 
-RUN cd /go/src/github.com/boxboat/okta-nginx/ \
+RUN apk add --no-cache \
+        git
+
+COPY / /root/okta-nginx
+
+RUN cd /root/okta-nginx/ \
     && go build
 
 
@@ -11,7 +16,7 @@ FROM nginx:1.14.0-alpine
 RUN apk add --no-cache \
         ca-certificates
 
-COPY --from=build /go/src/github.com/boxboat/okta-nginx/okta-nginx /usr/local/bin/okta-nginx
+COPY --from=build /root/okta-nginx/okta-nginx /usr/local/bin/okta-nginx
 
 COPY stage/ /
 
