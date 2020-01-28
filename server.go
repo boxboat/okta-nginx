@@ -27,6 +27,7 @@ type config struct {
 	clientID            string        //CLIENT_ID
 	clientSecret        string        //CLIENT_SECRET
 	endpointAuthorize	string		  //ENDPOINT_AUTHORIZE
+	endpointLogout      string        //ENDPOINT_LOGOUT
 	endpointToken       string        //ENDPOINT_TOKEN
 	issuer              string        //ISSUER
 	ssoPath             string        //SSO_PATH
@@ -38,7 +39,7 @@ var templateCache = make(map[string]*template.Template)
 var templateCacheMu = &sync.Mutex{}
 
 type jwtResponse struct {
-	AccessToken string `json:"access_token"`
+	IDToken string `json:"id_token"`
 }
 
 func getConfig() *config {
@@ -57,11 +58,6 @@ func getConfig() *config {
 	issuer := strings.TrimRight(os.Getenv("ISSUER"), "/")
 	if issuer == "" {
 		log.Fatalln("This is the URL of the authorization server that will perform authentication. All Developer Accounts have a 'default' authorization server. The issuer is a combination of your Org URL (found in the upper right of the console home page) and /oauth2/default. For example, https://dev-1234.oktapreview.com/oauth2/default.")
-	}
-
-	audience := os.Getenv("AUDIENCE")
-	if audience == "" {
-		log.Fatalln("Must specify AUDIENCE env variable - Audience can be found on the 'Settings' tab of the Authorization Server.  The 'default' authorization server uses the audience 'api://default'")
 	}
 
 	_, err := url.Parse(issuer)
@@ -83,6 +79,16 @@ func getConfig() *config {
 		_, err := url.Parse(issuer)
 		if err != nil {
 			log.Fatalf("ENDPOINT_AUTHORIZE is not a valid URL, %v", endpointAuthorize)
+		}
+	}
+
+	endpointLogout := os.Getenv("ENDPOINT_LOGOUT")
+	if endpointLogout == "" {
+		endpointLogout = issuer + "/v1/logout"
+	} else {
+		_, err := url.Parse(issuer)
+		if err != nil {
+			log.Fatalf("ENDPOINT_LOGOUT is not a valid URL, %v", endpointLogout)
 		}
 	}
 
@@ -109,8 +115,9 @@ func getConfig() *config {
 
 	//Initialize validator
 	toValidate := map[string]string{}
-	toValidate["aud"] = audience
-	toValidate["cid"] = clientID
+	toValidate["iss"] = issuer
+	toValidate["aud"] = clientID
+	toValidate["nonce"] = "123"
 
 	jwtverifierSetup := jwtverifier.JwtVerifier{
 		Issuer:           issuer,
@@ -121,6 +128,7 @@ func getConfig() *config {
 		clientID:            clientID,
 		clientSecret:        clientSecret,
 		endpointAuthorize:   endpointAuthorize,
+		endpointLogout:      endpointLogout,
 		endpointToken:       endpointToken,
 		issuer:              issuer,
 		requestTimeout:      requestTimeOutDuration,
@@ -153,6 +161,11 @@ func runServer(conf *config) {
 	//Refresh done
 	http.HandleFunc(conf.ssoPath+"refresh/done", func(w http.ResponseWriter, r *http.Request) {
 		refreshDoneHandler(w, r, conf)
+	})
+
+	//Logout
+	http.HandleFunc(conf.ssoPath+"logout", func(w http.ResponseWriter, r *http.Request) {
+		logoutHandler(w, r, conf)
 	})
 
 	//Error
@@ -196,7 +209,7 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 		return
 	}
 
-	jwt, err := conf.verifier.VerifyAccessToken(tokenCookie.Value)
+	jwt, err := conf.verifier.VerifyIdToken(tokenCookie.Value)
 
 	if err != nil {
 		w.Header().Set("X-Auth-Request-Redirect", redirectURL(r, conf, r.Header.Get("X-Okta-Nginx-Request-Uri")))
@@ -204,16 +217,16 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 		return
 	}
 
-	sub, ok := jwt.Claims["sub"]
+	username, ok := jwt.Claims["preferred_username"]
 	if !ok {
-		log.Printf("validateCookieHandler: Claim 'sub' not included in access token, %v", tokenCookie.Value)
+		log.Printf("validateCookieHandler: Claim 'preferred_username' not included in access token, %v", tokenCookie.Value)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	subStr, ok := sub.(string)
+	usernameStr, ok := username.(string)
 	if !ok {
-		log.Printf("validateCookieHandler: Unable to convert 'sub' to string in access token, %v", tokenCookie.Value)
+		log.Printf("validateCookieHandler: Unable to convert 'preferred_username' to string in access token, %v", tokenCookie.Value)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -237,7 +250,7 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 		resultString := strings.ToLower(strings.TrimSpace(resultBytes.String()))
 
 		if resultString != "true" && resultString != "1" {
-			log.Printf("validateCookieHandler: validateClaimsTemplate template: '%v', result: '%v', sub: '%v'", validateClaimsTemplate, resultString, subStr)
+			log.Printf("validateCookieHandler: validateClaimsTemplate template: '%v', result: '%v', preferred_username: '%v'", validateClaimsTemplate, resultString, usernameStr)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -265,7 +278,7 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 		}
 	}
 
-	w.Header().Set("X-Auth-Request-User", subStr)
+	w.Header().Set("X-Auth-Request-User", usernameStr)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -306,7 +319,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 		return
 	}
 
-	jwt, err := conf.verifier.VerifyAccessToken(jwtStr)
+	jwt, err := conf.verifier.VerifyIdToken(jwtStr)
 	if err != nil {
 		log.Printf("refreshHandler: JWT Validation Error, %v", err)
 		http.SetCookie(w, unsetCookie)
@@ -372,7 +385,7 @@ func refreshCheckHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 		return
 	}
 
-	jwt, err := conf.verifier.VerifyAccessToken(tokenCookie.Value)
+	jwt, err := conf.verifier.VerifyIdToken(tokenCookie.Value)
 
 	if err != nil {
 		log.Printf("refreshCheckHandler: JWT Validation Error, %v", err)
@@ -429,6 +442,29 @@ func refreshDoneHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 		log.Printf("refreshDoneHandler: error when writing string to output, %v", err)
 		return
 	}
+}
+
+func logoutHandler(w http.ResponseWriter, r *http.Request, conf *config) {
+	unsetCookie := &http.Cookie{
+		Domain:   getCookieDomain(r),
+		Name:     getCookieName(r),
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+	}
+
+	logoutRedirect := getLogoutRedirectURL(r).String()
+	tokenCookie, err := r.Cookie(unsetCookie.Name)
+	if err != nil {
+		http.Redirect(w, r, logoutRedirect, http.StatusTemporaryRedirect)
+	}
+
+	http.SetCookie(w, unsetCookie)
+	http.Redirect(w, r,
+		conf.endpointLogout +
+			"?id_token_hint=" + url.QueryEscape(tokenCookie.Value) +
+			"&post_logout_redirect_uri=" + url.QueryEscape(logoutRedirect),
+		http.StatusTemporaryRedirect)
 }
 
 func errorHandler(w http.ResponseWriter, r *http.Request, conf *config) {
@@ -511,7 +547,7 @@ func getJWT(r *http.Request, code string, conf *config) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		return jsonResponse.AccessToken, nil
+		return jsonResponse.IDToken, nil
 	}
 
 	bodyStr := string(bodyBytes)
@@ -619,6 +655,25 @@ func getLoginRedirectURL(r *http.Request) *url.URL {
 		return &url.URL{}
 	}
 	return loginRedirectURL
+}
+
+func getLogoutRedirectURL(r *http.Request) *url.URL {
+	logoutRedirect := r.Header.Get("X-Okta-Nginx-Logout-Redirect-Url")
+	logoutRedirectURL := & url.URL{}
+	if logoutRedirect != "" {
+		var err error
+		logoutRedirectURL, err = url.Parse(logoutRedirect)
+		if err != nil {
+			log.Printf("LOGOUT_REDIRECT_URL is not a valid URL, %v", logoutRedirect)
+			logoutRedirectURL = &url.URL{}
+		}
+	}
+	if (logoutRedirectURL.Scheme == "" || logoutRedirectURL.Host == ""){
+		requestOriginURL := getRequestOriginURL(r)
+		logoutRedirectURL.Scheme = requestOriginURL.Scheme
+		logoutRedirectURL.Host = requestOriginURL.Host
+	}
+	return logoutRedirectURL
 }
 
 func getTemplate(templateText string) (*template.Template, error) {

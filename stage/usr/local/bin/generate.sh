@@ -42,6 +42,7 @@ env_vars="${env_vars} LISTEN"
 env_vars="${env_vars} LOCATIONS_PROTECTED"
 env_vars="${env_vars} LOCATIONS_UNPROTECTED"
 env_vars="${env_vars} LOGIN_REDIRECT_URL"
+env_vars="${env_vars} LOGOUT_REDIRECT_URL"
 env_vars="${env_vars} PROXY_PASS"
 env_vars="${env_vars} PROXY_SET_HEADER_NAMES"
 env_vars="${env_vars} PROXY_SET_HEADER_VALUES"
@@ -129,6 +130,7 @@ ${LISTEN}
 ${LOCATIONS_PROTECTED}
 ${LOCATIONS_UNPROTECTED}
 ${LOGIN_REDIRECT_URL}
+${LOGOUT_REDIRECT_URL}
 ${PROXY_PASS}
 ${PROXY_SET_HEADER_NAMES}
 ${PROXY_SET_HEADER_VALUES}
