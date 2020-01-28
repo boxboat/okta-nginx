@@ -14,8 +14,8 @@ if [ -z "$BOXOPS_TEAM_PROXY_KEY" ]; then
 fi
 
 
-curl -SsLo "proxy-settings.json" \
-    -H "X-BoxOps-Team-Proxy-Key: ${BOXOPS_TEAM_PROXY_KEY}" \
+curl -fSsLo "proxy-settings.json" \
+    -H "Authorization: Bearer ${BOXOPS_TEAM_PROXY_KEY}" \
     "$BOXOPS_PROXY_SETTINGS_URL"
 
 if [ "$1" = "false" ]; then
