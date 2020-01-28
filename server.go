@@ -29,9 +29,9 @@ type config struct {
 	endpointAuthorize	string		  //ENDPOINT_AUTHORIZE
 	endpointLogout      string        //ENDPOINT_LOGOUT
 	endpointToken       string        //ENDPOINT_TOKEN
+	httpClient          *http.Client
 	issuer              string        //ISSUER
 	ssoPath             string        //SSO_PATH
-	requestTimeout      time.Duration //Default of 5 seconds if no env set
 	verifier            *jwtverifier.JwtVerifier
 }
 
@@ -40,6 +40,12 @@ var templateCacheMu = &sync.Mutex{}
 
 type jwtResponse struct {
 	IDToken string `json:"id_token"`
+}
+
+type metadataResponse struct {
+	EndpointAuthorize string `json:"authorization_endpoint"`
+	EndpointLogout    string `json:"end_session_endpoint"`
+	EndpointToken     string `json:"token_endpoint"`
 }
 
 func getConfig() *config {
@@ -72,9 +78,29 @@ func getConfig() *config {
 		ssoPath = "/" + strings.Trim(ssoPath, "/") + "/"
 	}
 
+	requestTimeOutSeconds := time.Second * time.Duration(30)
+	requestTimeOut := os.Getenv("REQUEST_TIMEOUT")
+	if requestTimeOut != "" {
+		requestTimeoutInt, err := strconv.Atoi(os.Getenv("REQUEST_TIMEOUT"))
+		if err != nil {
+			log.Println("Unable to parse REQUEST_TIMEOUT env variable, using a default of 30 seconds")
+		} else {
+			requestTimeOutSeconds = time.Second * time.Duration(requestTimeoutInt)
+		}
+	}
+
+	httpClient := &http.Client{
+		Timeout: requestTimeOutSeconds,
+	}
+	wellKnown := issuer + "/.well-known/openid-configuration"
+	metadata, err := getMetadata(httpClient, wellKnown)
+	if err != nil {
+		log.Fatalf("Unable to get issuer metadata from Okta, %v", wellKnown)
+	}
+
 	endpointAuthorize := os.Getenv("ENDPOINT_AUTHORIZE")
 	if endpointAuthorize == "" {
-		endpointAuthorize = issuer + "/v1/authorize"
+		endpointAuthorize = metadata.EndpointAuthorize
 	} else {
 		_, err := url.Parse(issuer)
 		if err != nil {
@@ -84,7 +110,7 @@ func getConfig() *config {
 
 	endpointLogout := os.Getenv("ENDPOINT_LOGOUT")
 	if endpointLogout == "" {
-		endpointLogout = issuer + "/v1/logout"
+		endpointLogout = metadata.EndpointLogout
 	} else {
 		_, err := url.Parse(issuer)
 		if err != nil {
@@ -94,22 +120,11 @@ func getConfig() *config {
 
 	endpointToken := os.Getenv("ENDPOINT_TOKEN")
 	if endpointToken == "" {
-		endpointToken = issuer + "/v1/token"
+		endpointToken = metadata.EndpointToken
 	} else {
 		_, err := url.Parse(issuer)
 		if err != nil {
 			log.Fatalf("ENDPOINT_TOKEN is not a valid URL, %v", endpointToken)
-		}
-	}
-
-	requestTimeOutDuration := time.Duration(5)
-	requestTimeOut := os.Getenv("REQUEST_TIMEOUT")
-	if requestTimeOut != "" {
-		requestTimeoutInt, err := strconv.Atoi(os.Getenv("REQUEST_TIMEOUT"))
-		if err != nil {
-			log.Println("Unable to parse REQUEST_TIMEOUT env variable, using a default of 5 seconds")
-		} else {
-			requestTimeOutDuration = time.Duration(requestTimeoutInt)
 		}
 	}
 
@@ -130,8 +145,8 @@ func getConfig() *config {
 		endpointAuthorize:   endpointAuthorize,
 		endpointLogout:      endpointLogout,
 		endpointToken:       endpointToken,
+		httpClient:          httpClient,
 		issuer:              issuer,
-		requestTimeout:      requestTimeOutDuration,
 		ssoPath:             ssoPath,
 		verifier:            jwtverifierSetup.New(),
 	}
@@ -219,14 +234,14 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 
 	username, ok := jwt.Claims["preferred_username"]
 	if !ok {
-		log.Printf("validateCookieHandler: Claim 'preferred_username' not included in access token, %v", tokenCookie.Value)
+		log.Printf("validateCookieHandler: Claim 'preferred_username' not included in identity token, %v", tokenCookie.Value)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	usernameStr, ok := username.(string)
 	if !ok {
-		log.Printf("validateCookieHandler: Unable to convert 'preferred_username' to string in access token, %v", tokenCookie.Value)
+		log.Printf("validateCookieHandler: Unable to convert 'preferred_username' to string in identity token, %v", tokenCookie.Value)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -330,7 +345,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 	exp, ok := jwt.Claims["exp"]
 	if !ok {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("refreshHandler: Claim 'exp' not included in access token, %v", jwtStr)
+		log.Printf("refreshHandler: Claim 'exp' not included in identity token, %v", jwtStr)
 		return
 	}
 
@@ -395,7 +410,7 @@ func refreshCheckHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 
 	exp, ok := jwt.Claims["exp"]
 	if !ok {
-		log.Printf("refreshCheckHandler: Claim 'exp' not included in access token, %v", tokenCookie.Value)
+		log.Printf("refreshCheckHandler: Claim 'exp' not included in identity token, %v", tokenCookie.Value)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -508,12 +523,8 @@ func errorHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 	}
 }
 
-//getJWT queries the okta server with an access code.  A valid request will return a JWT access token.
+//getJWT queries the okta server with an access code.  A valid request will return a JWT identity token.
 func getJWT(r *http.Request, code string, conf *config) (string, error) {
-	client := &http.Client{
-		Timeout: time.Second * conf.requestTimeout,
-	}
-
 	loginRedirect := getLoginRedirectURL(r).String()
 	reqBody := []byte("code=" + url.QueryEscape(code) +
 		"&client_id=" + url.QueryEscape(conf.clientID) +
@@ -529,7 +540,7 @@ func getJWT(r *http.Request, code string, conf *config) (string, error) {
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := client.Do(req)
+	resp, err := conf.httpClient.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -552,6 +563,37 @@ func getJWT(r *http.Request, code string, conf *config) (string, error) {
 
 	bodyStr := string(bodyBytes)
 	return "", errors.New(bodyStr)
+}
+
+func getMetadata(httpClient *http.Client, wellKnown string) (*metadataResponse, error) {
+	req, err := http.NewRequest("GET", wellKnown, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Accept", "application/json")
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode == http.StatusOK {
+		jsonResponse := &metadataResponse{}
+		err = json.Unmarshal(bodyBytes, &jsonResponse)
+		if err != nil {
+			return nil, err
+		}
+		return jsonResponse, nil
+	}
+
+	bodyStr := string(bodyBytes)
+	return nil, errors.New(bodyStr)
 }
 
 func removeSockIfExists() {

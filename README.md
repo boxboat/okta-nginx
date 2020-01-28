@@ -21,8 +21,8 @@ This repository builds a Docker Image that protects an upstream server using [Ok
 
 - `APP_POST_LOGIN_URL` - After authentication is complete, redirect to an application-specific URL.  The `state` query parameter will hold the original URL.
 - `COOKIE_DOMAIN` - Defaults to current domain only.  Set in order to allow use on subdomains.
-- `COOKIE_NAME` - Defaults to `okta-jwt`. The name of the cookie that holds the Authorization Token
-- `INJECT_REFRESH_JS` - Defaults to `true`.  Set to `false` to disable injection of JavaScript that transparently refreshes Access Tokens when they are close to expiring
+- `COOKIE_NAME` - Defaults to `okta-jwt`. The name of the cookie that holds the Identity Token
+- `INJECT_REFRESH_JS` - Defaults to `true`.  Set to `false` to disable injection of JavaScript that transparently refreshes Identity Tokens when they are close to expiring
 - `ENDPOINT_AUTHORIZE` - Defaults to `${ISSUER}/v1/authorize`.  Alternate endpoint to redirect to for authorization.
 - `ENDPOINT_LOGOUT` - Defaults to `${ISSUER}/v1/logout`.  Alternate endpoint to redirect to for logout.
 - `ENDPOINT_TOKEN` - Defaults to `${ISSUER}/v1/token`.  Alternate endpoint to retrieve token from.
@@ -32,7 +32,7 @@ This repository builds a Docker Image that protects an upstream server using [Ok
 - `LOGOUT_REDIRECT_URL` - Defaults is app origin URL.  URL to redirect to after logging out, can be relative or absolute.  Logout path is `/sso/logout`, or `${SSO_PATH}/logout` if `SSO_PATH` is set.
 - `PROXY_SET_HEADER_NAMES` - Default is none.  Comma separated list of headers to add that will be passed upstream.  Must be accompanied by `PROXY_SET_HEADER_VALUES`.
 - `PROXY_SET_HEADER_VALUES` - Default is none.  Comma separated list of values to associate with `PROXY_SET_HEADER_NAMES`.  Values are Go templates that execute against claims, for example `{{.groups}}`.
-- `REQUEST_TIMEOUT` - Defaults to `5`.  Timeout for calling the Okta `token` endpoint to retrieve an Authorization Token
+- `REQUEST_TIMEOUT` - Defaults to `30`.  Timeout for calling the Okta Endpoints
 - `SERVER_NAME` - Defaults to `_`.  See [nginx server_name](http://nginx.org/en/docs/http/ngx_http_core_module.html#server_name) for options.
 - `SSO_PATH` - Defaults to `/sso/`. Path for SSO error and refresh endpoints.  Should include leading and trailing slash
 - `UPDATE_SCRIPT` - Default is none.  If desired, set to the full path of an executable shell script that updates the configuration.  One parameter will be passed to the script, it will be `true` on the first update and `false` on subsequent updates.
