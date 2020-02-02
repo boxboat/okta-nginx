@@ -40,6 +40,7 @@ IFS=$';'
 for jq_file in $JQ_FILES; do
     part_file=$(echo "$jq_file" | cut -d'=' -f1)
     part_jq=$(echo "$jq_file" | cut -d'=' -f2)
+    mkdir -p $(dirname "$part_file")
     jq -r "$part_jq" "proxy-settings.json" > "$part_file"
 done
 unset IFS

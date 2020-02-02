@@ -1,5 +1,6 @@
 .vscode
 
+/docker-run.*.sh
 /okta-nginx
 /server
 /vars.env
