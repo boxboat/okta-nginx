@@ -15,6 +15,7 @@ fi
 
 
 curl -fSsLo "proxy-settings.json" \
+    --compressed \
     -H "Authorization: Bearer ${BOXOPS_TEAM_PROXY_KEY}" \
     "$BOXOPS_PROXY_SETTINGS_URL"
 
