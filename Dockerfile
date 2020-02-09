@@ -1,4 +1,4 @@
-FROM golang:1.12.4-alpine3.9 AS build
+FROM golang:1.13.6-alpine3.11 AS build
 
 ENV CGO_ENABLED=0
 
@@ -14,7 +14,9 @@ RUN cd /root/okta-nginx/ \
 FROM nginx:1.14.0-alpine
 
 RUN apk add --no-cache \
-        ca-certificates
+        ca-certificates \
+        curl \
+        jq
 
 COPY --from=build /root/okta-nginx/okta-nginx /usr/local/bin/okta-nginx
 

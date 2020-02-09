@@ -32,12 +32,22 @@ if [ -z "$SSO_PATH" ]; then
     export SSO_PATH="/sso/"
 fi
 export SSO_PATH=$(ensure_path "$SSO_PATH")
-# set APP_REDIRECT_PATH
-export APP_REDIRECT_PATH=$(extract_path "$LOGIN_REDIRECT_URL")
 
 # iterate through server configurations
 env_var_suffix=""
-env_vars="LISTEN LOCATIONS_PROTECTED LOCATIONS_UNPROTECTED PROXY_PASS PROXY_SET_HEADER_NAMES PROXY_SET_HEADER_VALUES SERVER_NAME VALIDATE_CLAIMS_TEMPLATE"
+env_vars="APP_POST_LOGIN_URL"
+env_vars="${env_vars} COOKIE_DOMAIN"
+env_vars="${env_vars} COOKIE_NAME"
+env_vars="${env_vars} LISTEN"
+env_vars="${env_vars} LOCATIONS_PROTECTED"
+env_vars="${env_vars} LOCATIONS_UNPROTECTED"
+env_vars="${env_vars} LOGIN_REDIRECT_URL"
+env_vars="${env_vars} LOGOUT_REDIRECT_URL"
+env_vars="${env_vars} PROXY_PASS"
+env_vars="${env_vars} PROXY_SET_HEADER_NAMES"
+env_vars="${env_vars} PROXY_SET_HEADER_VALUES"
+env_vars="${env_vars} SERVER_NAME"
+env_vars="${env_vars} VALIDATE_CLAIMS_TEMPLATE"
 export SERVER_SUFFIX=""
 i=1
 while : ; do
@@ -51,12 +61,13 @@ while : ; do
     done
 
     if [ ! -z "$SERVER_SUFFIX" \
-        -a -z "${LISTEN}" \
-        -a -z "${SERVER_NAME}" \
+        -a -z "${LOGIN_REDIRECT_URL}" \
     ]; then
         break
     fi
-    
+
+    # set APP_REDIRECT_PATH
+    export APP_REDIRECT_PATH=$(extract_path "$LOGIN_REDIRECT_URL")
     # set LISTEN
     if [ -z "${LISTEN+x}" ]; then
         export LISTEN="80";
@@ -112,7 +123,21 @@ while : ; do
     fi
 
     # stamp out default.conf template
-    envsubst '${APP_REDIRECT_PATH},${LISTEN},${PROXY_SET_HEADER_NAMES},${PROXY_SET_HEADER_VALUES},${SERVER_NAME},${SERVER_SUFFIX},${SSO_PATH},${VALIDATE_CLAIMS_TEMPLATE}' \
+    envsubst '${APP_POST_LOGIN_URL}
+${COOKIE_DOMAIN}
+${COOKIE_NAME}
+${LISTEN}
+${LOCATIONS_PROTECTED}
+${LOCATIONS_UNPROTECTED}
+${LOGIN_REDIRECT_URL}
+${LOGOUT_REDIRECT_URL}
+${PROXY_PASS}
+${PROXY_SET_HEADER_NAMES}
+${PROXY_SET_HEADER_VALUES}
+${SERVER_NAME}
+${SERVER_SUFFIX}
+${SSO_PATH}
+${VALIDATE_CLAIMS_TEMPLATE}' \
         < /etc/nginx/templates/default.conf \
         > "/etc/nginx/conf.d/default${SERVER_SUFFIX}.conf"
 
