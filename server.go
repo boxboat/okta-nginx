@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -24,15 +25,15 @@ import (
 const sock = "/var/run/auth.sock"
 
 type config struct {
-	clientID            string        //CLIENT_ID
-	clientSecret        string        //CLIENT_SECRET
-	endpointAuthorize	string		  //ENDPOINT_AUTHORIZE
-	endpointLogout      string        //ENDPOINT_LOGOUT
-	endpointToken       string        //ENDPOINT_TOKEN
-	httpClient          *http.Client
-	issuer              string        //ISSUER
-	ssoPath             string        //SSO_PATH
-	verifier            *jwtverifier.JwtVerifier
+	clientID          string //CLIENT_ID
+	clientSecret      string //CLIENT_SECRET
+	endpointAuthorize string //ENDPOINT_AUTHORIZE
+	endpointLogout    string //ENDPOINT_LOGOUT
+	endpointToken     string //ENDPOINT_TOKEN
+	httpClient        *http.Client
+	issuer            string //ISSUER
+	ssoPath           string //SSO_PATH
+	verifier          *jwtverifier.JwtVerifier
 }
 
 var templateCache = make(map[string]*template.Template)
@@ -140,15 +141,15 @@ func getConfig() *config {
 	}
 
 	return &config{
-		clientID:            clientID,
-		clientSecret:        clientSecret,
-		endpointAuthorize:   endpointAuthorize,
-		endpointLogout:      endpointLogout,
-		endpointToken:       endpointToken,
-		httpClient:          httpClient,
-		issuer:              issuer,
-		ssoPath:             ssoPath,
-		verifier:            jwtverifierSetup.New(),
+		clientID:          clientID,
+		clientSecret:      clientSecret,
+		endpointAuthorize: endpointAuthorize,
+		endpointLogout:    endpointLogout,
+		endpointToken:     endpointToken,
+		httpClient:        httpClient,
+		issuer:            issuer,
+		ssoPath:           ssoPath,
+		verifier:          jwtverifierSetup.New(),
 	}
 }
 
@@ -171,6 +172,10 @@ func runServer(conf *config) {
 	//Refresh check
 	http.HandleFunc(conf.ssoPath+"refresh/check", func(w http.ResponseWriter, r *http.Request) {
 		refreshCheckHandler(w, r, conf)
+	})
+
+	http.HandleFunc(conf.ssoPath+"refresh/initiate", func(w http.ResponseWriter, r *http.Request) {
+		refreshInitiateHandler(w, r, conf)
 	})
 
 	//Refresh done
@@ -387,6 +392,10 @@ func callbackHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 	http.Redirect(w, r, state, http.StatusTemporaryRedirect)
 }
 
+type refreshCheckResponse struct {
+	ExpSeconds int `json:"expSeconds"`
+}
+
 func refreshCheckHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 	tokenCookie, err := r.Cookie(getCookieName(r))
 	switch {
@@ -422,20 +431,31 @@ func refreshCheckHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	if expFloat-float64(time.Now().UTC().Unix()) < (5 * time.Minute).Seconds() {
-		_, err = io.WriteString(w, redirectURL(r, conf, conf.ssoPath+"refresh/done"))
-	} else {
-		_, err = io.WriteString(w, "ok")
+	js, err := json.Marshal(&refreshCheckResponse{
+		ExpSeconds: int(math.Max(0.0, math.Ceil(expFloat-float64(time.Now().UTC().Unix())))),
+	})
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("refreshCheckHandler: Unable to marshal response to JSON")
+		return
 	}
 
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_, err = w.Write(js)
+
 	if err != nil {
-		log.Printf("refreshCheckHandler: error when writing string to output, %v", err)
+		log.Printf("refreshCheckHandler: error when writing output, %v", err)
 		return
 	}
 }
 
+func refreshInitiateHandler(w http.ResponseWriter, r *http.Request, conf *config) {
+	w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+	http.Redirect(w, r, redirectURL(r, conf, conf.ssoPath+"refresh/done"), http.StatusTemporaryRedirect)
+}
+
 func refreshDoneHandler(w http.ResponseWriter, r *http.Request, conf *config) {
+	w.Header().Set("X-Frame-Options", "SAMEORIGIN")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, err := io.WriteString(w, `
 	<!DOCTYPE html>
@@ -476,9 +496,9 @@ func logoutHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 
 	http.SetCookie(w, unsetCookie)
 	http.Redirect(w, r,
-		conf.endpointLogout +
-			"?id_token_hint=" + url.QueryEscape(tokenCookie.Value) +
-			"&post_logout_redirect_uri=" + url.QueryEscape(logoutRedirect),
+		conf.endpointLogout+
+			"?id_token_hint="+url.QueryEscape(tokenCookie.Value)+
+			"&post_logout_redirect_uri="+url.QueryEscape(logoutRedirect),
 		http.StatusTemporaryRedirect)
 }
 
@@ -635,12 +655,12 @@ func redirectURL(r *http.Request, conf *config, requestURI string) string {
 	}
 
 	loginRedirect := getLoginRedirectURL(r).String()
-	return conf.endpointAuthorize + 
+	return conf.endpointAuthorize +
 		"?client_id=" + url.QueryEscape(conf.clientID) +
 		"&response_type=code" +
 		"&scope=openid profile" +
 		"&nonce=123" +
-		"&redirect_uri=" + url.QueryEscape(loginRedirect)  + 
+		"&redirect_uri=" + url.QueryEscape(loginRedirect) +
 		"&state=" + url.QueryEscape(requestURLStr)
 }
 
@@ -673,7 +693,7 @@ func getRequestOriginURL(r *http.Request) *url.URL {
 	return &url.URL{}
 }
 
-func getCookieName(r *http.Request) string{
+func getCookieName(r *http.Request) string {
 	cookieName := r.Header.Get("X-Okta-Nginx-Cookie-Name")
 	if cookieName == "" {
 		cookieName = "okta-jwt"
@@ -701,7 +721,7 @@ func getLoginRedirectURL(r *http.Request) *url.URL {
 
 func getLogoutRedirectURL(r *http.Request) *url.URL {
 	logoutRedirect := r.Header.Get("X-Okta-Nginx-Logout-Redirect-Url")
-	logoutRedirectURL := & url.URL{}
+	logoutRedirectURL := &url.URL{}
 	if logoutRedirect != "" {
 		var err error
 		logoutRedirectURL, err = url.Parse(logoutRedirect)
@@ -710,7 +730,7 @@ func getLogoutRedirectURL(r *http.Request) *url.URL {
 			logoutRedirectURL = &url.URL{}
 		}
 	}
-	if (logoutRedirectURL.Scheme == "" || logoutRedirectURL.Host == ""){
+	if logoutRedirectURL.Scheme == "" || logoutRedirectURL.Host == "" {
 		requestOriginURL := getRequestOriginURL(r)
 		logoutRedirectURL.Scheme = requestOriginURL.Scheme
 		logoutRedirectURL.Host = requestOriginURL.Host

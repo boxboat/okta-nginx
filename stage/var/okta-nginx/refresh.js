@@ -3,74 +3,74 @@
 /// all comments should start with 3 forward slashes
 /// all statements should end in semicolons
 /// the sso path should be referred to as /sso/
-(function(){
+(function () {
     /// iframe variable
     var i;
 
     /// handle window.postMessage event
-    function wl(e){
+    function wl(e) {
         console.log('wl');
-        if (e.origin !== window.location.protocol + "//" + window.location.host){
+        if (e.origin !== window.location.protocol + "//" + window.location.host) {
             return;
         }
-        if (e.data === 'ssoRefreshDone'){
+        if (e.data === 'ssoRefreshDone') {
             i.parentNode.removeChild(i);
-            i=undefined;
+            i = undefined;
         }
     }
+
     window.addEventListener('message', wl);
 
     /// check that window.postMessage has been called
     /// refresh window if it has not
-    function wc(){
+    function wc() {
         console.log('wc');
-        if (i !== undefined){
+        if (i !== undefined) {
             window.location.reload();
         } else {
             console.log('ok');
-            setTimeout(xr, 50000);
+            xr();
         }
     }
 
     /// create iframe to refresh session
-    function wr(u){
+    function wr() {
         console.log('wr');
         i = document.createElement('iframe');
         i.style.display = 'none';
-        i.src = u;
+        i.src = "/sso/refresh/initiate";
         document.body.appendChild(i);
-        setTimeout(wc, 10000);
+        setTimeout(wc, 30000);
     }
-    
+
     /// handle xhr response
-    function xl(){
+    function xl() {
         console.log('xl');
-        if (this.responseText == "ok"){
-            setTimeout(xr, 60000);
-            return;
-        }
-        wr(this.responseText);
+        var data = JSON.parse(this.responseText);
+        setTimeout(wr, Math.max((data.expSeconds - 30) * 1000, 1));
     }
 
     /// handle xhr error
-    function xe(){
+    function xe() {
         console.log('xe');
         setTimeout(xr, 50000);
     }
 
     /// perform xhr
-    function xr(){
-        console.log('xe');
-        var x=new XMLHttpRequest();
+    function xr() {
+        console.log('xr');
+        var x = new XMLHttpRequest();
         x.addEventListener("load", xl);
         x.addEventListener("abort", xe);
         x.addEventListener("error", xe);
         x.addEventListener("timeout", xe);
+        x.overrideMimeType("application/json");
         x.open("GET", "/sso/refresh/check");
-        x.timeout=10000;
-        x.withCredentials=true;
+        x.timeout = 10000;
+        x.withCredentials = true;
         x.send();
     }
+
     xr();
 
 })();
