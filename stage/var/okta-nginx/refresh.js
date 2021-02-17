@@ -34,20 +34,21 @@
     }
 
     /// create iframe to refresh session
-    function wr() {
+    function wr(wct) {
         console.log('wr');
         i = document.createElement('iframe');
         i.style.display = 'none';
         i.src = "/sso/refresh/initiate";
         document.body.appendChild(i);
-        setTimeout(wc, 30000);
+        setTimeout(wc, wct);
     }
 
     /// handle xhr response
     function xl() {
         console.log('xl');
         var data = JSON.parse(this.responseText);
-        setTimeout(wr, Math.max((data.expSeconds - 30) * 1000, 1));
+        var wct = Math.max(Math.min(300, data.expSeconds - 300), 10) * 1000;
+        setTimeout(function () { wr(wct) }, Math.max((data.expSeconds - 300) * 1000, 1));
     }
 
     /// handle xhr error
