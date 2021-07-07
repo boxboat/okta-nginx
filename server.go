@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig"
-	jwtverifier "github.com/caleblloyd/okta-jwt-verifier-golang"
+	jwtverifier "github.com/okta/okta-jwt-verifier-golang"
 )
 
 const sock = "/var/run/auth.sock"
