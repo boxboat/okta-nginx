@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"html"
 	"io"
 	"io/ioutil"
 	"log"
@@ -532,7 +533,7 @@ func errorHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 		
 		<p><strong>Error Details:</strong></p>
 
-		<pre>`+ssoErr+`</pre>
+		<pre>`+html.EscapeString(ssoErr)+`</pre>
 	</body>
 	</html>	
 	`)
