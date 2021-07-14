@@ -20,7 +20,7 @@ jobs:
         id: compute_tags
         run: |
           branch="${GITHUB_REF#refs/heads/}"
-          tag="${GITHUB_REF#refs/tags/v}"
+          tag="${GITHUB_REF#refs/tags/}"
           if [ "$branch" != "$GITHUB_REF" ]; then
             branch="$(echo "$branch" | sed -e 's/[^a-zA-Z0-9\-\.]/-/g')"
             echo "::set-output name=TAGS::boxboat/okta-nginx:commit-${branch}"
