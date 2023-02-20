@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/Masterminds/sprig/v3"
 	"html"
 	"io"
 	"io/ioutil"
@@ -19,7 +20,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/Masterminds/sprig"
 	jwtverifier "github.com/okta/okta-jwt-verifier-golang"
 )
 
@@ -212,7 +212,7 @@ func runServer(conf *config) {
 	}
 }
 
-//validateCookieHandler calls the okta api to validate the cookie
+// validateCookieHandler calls the okta api to validate the cookie
 func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 	// initialize headers
 	w.Header().Set("X-Auth-Request-Redirect", "")
@@ -544,7 +544,7 @@ func errorHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 	}
 }
 
-//getJWT queries the okta server with an access code.  A valid request will return a JWT identity token.
+// getJWT queries the okta server with an access code.  A valid request will return a JWT identity token.
 func getJWT(r *http.Request, code string, conf *config) (string, error) {
 	loginRedirect := getLoginRedirectURL(r).String()
 	reqBody := []byte("code=" + url.QueryEscape(code) +
