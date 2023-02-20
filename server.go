@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/Masterminds/sprig/v3"
+
 	"html"
 	"io"
 	"io/ioutil"
@@ -20,6 +20,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/Masterminds/sprig/v3"
 	jwtverifier "github.com/okta/okta-jwt-verifier-golang"
 )
 
