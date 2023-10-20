@@ -2,4 +2,4 @@
 
 cd $(dirname $0)
 
-docker build -t boxboat/okta-nginx .
+docker build --platform linux/amd64 -t boxboat/okta-nginx .
