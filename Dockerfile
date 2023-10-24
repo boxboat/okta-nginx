@@ -17,7 +17,8 @@ RUN apk add --no-cache \
         ca-certificates \
         curl \
         jq \ 
-        nginx
+        nginx \
+        gettext
 
 COPY --from=build /root/okta-nginx/okta-nginx /usr/local/bin/okta-nginx
 
