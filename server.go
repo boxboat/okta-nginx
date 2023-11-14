@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-
 	"html"
 	"io"
-	"io/ioutil"
 	"log"
 	"math"
 	"net"
@@ -21,7 +19,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
-	jwtverifier "github.com/okta/okta-jwt-verifier-golang"
+	jwtverifier "github.com/okta/okta-jwt-verifier-golang/v2"
 )
 
 const sock = "/var/run/auth.sock"
@@ -141,6 +139,10 @@ func getConfig() *config {
 		Issuer:           issuer,
 		ClaimsToValidate: toValidate,
 	}
+	verifier, err := jwtverifierSetup.New()
+	if err != nil {
+		log.Fatalf("Unable to create JWT verifier: %v", err)
+	}
 
 	return &config{
 		clientID:          clientID,
@@ -151,7 +153,7 @@ func getConfig() *config {
 		httpClient:        httpClient,
 		issuer:            issuer,
 		ssoPath:           ssoPath,
-		verifier:          jwtverifierSetup.New(),
+		verifier:          verifier,
 	}
 }
 
@@ -221,7 +223,7 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 
 	tokenCookie, err := r.Cookie(getCookieName(r))
 	switch {
-	case err == http.ErrNoCookie:
+	case errors.Is(err, http.ErrNoCookie):
 		w.Header().Set("X-Auth-Request-Redirect", redirectURL(r, conf, r.Header.Get("X-Okta-Nginx-Request-Uri")))
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -401,7 +403,7 @@ type refreshCheckResponse struct {
 func refreshCheckHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 	tokenCookie, err := r.Cookie(getCookieName(r))
 	switch {
-	case err == http.ErrNoCookie:
+	case errors.Is(err, http.ErrNoCookie):
 		log.Printf("refreshCheckHandler: No Cookie")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -568,7 +570,7 @@ func getJWT(r *http.Request, code string, conf *config) (string, error) {
 	}
 
 	defer resp.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -600,7 +602,7 @@ func getMetadata(httpClient *http.Client, wellKnown string) (*metadataResponse, 
 	}
 
 	defer resp.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
