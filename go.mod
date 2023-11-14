@@ -1,10 +1,10 @@
 module github.com/boxboat/okta-nginx
 
-go 1.19
+go 1.20
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
-	github.com/okta/okta-jwt-verifier-golang v1.3.1
+	github.com/okta/okta-jwt-verifier-golang/v2 v2.0.3
 )
 
 require (
@@ -23,10 +23,9 @@ require (
 	github.com/lestrrat-go/option v1.0.1 // indirect
 	github.com/mitchellh/copystructure v1.0.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.0 // indirect
-	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
+	github.com/patrickmn/go-cache v0.0.0-20180815053127-5633e0862627 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	golang.org/x/crypto v0.9.0 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
