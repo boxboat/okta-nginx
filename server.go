@@ -33,6 +33,7 @@ type config struct {
 	httpClient        *http.Client
 	issuer            string //ISSUER
 	ssoPath           string //SSO_PATH
+	authScope         string //AUTH_SCOPE
 	verifier          *jwtverifier.JwtVerifier
 }
 
@@ -87,6 +88,15 @@ func getConfig() *config {
 			log.Println("Unable to parse REQUEST_TIMEOUT env variable, using a default of 30 seconds")
 		} else {
 			requestTimeOutSeconds = time.Second * time.Duration(requestTimeoutInt)
+		}
+	}
+
+	authScope := os.Getenv("AUTH_SCOPE")
+	if authScope == "" {
+		authScope = "openid profile"
+	} else {
+		if !strings.Contains(authScope, "openid") {
+			log.Fatalln("AUTH_SCOPE must contain openid")
 		}
 	}
 
@@ -153,6 +163,7 @@ func getConfig() *config {
 		httpClient:        httpClient,
 		issuer:            issuer,
 		ssoPath:           ssoPath,
+		authScope:         authScope,
 		verifier:          verifier,
 	}
 }
@@ -555,7 +566,7 @@ func getJWT(r *http.Request, code string, conf *config) (string, error) {
 		"&client_secret=" + url.QueryEscape(conf.clientSecret) +
 		"&redirect_uri=" + url.QueryEscape(loginRedirect) +
 		"&grant_type=authorization_code" +
-		"&scope=openid profile")
+		"&scope=" + url.QueryEscape(conf.authScope))
 
 	req, err := http.NewRequest("POST", conf.endpointToken, bytes.NewBuffer(reqBody))
 	if err != nil {
@@ -662,7 +673,7 @@ func redirectURL(r *http.Request, conf *config, requestURI string) string {
 	return conf.endpointAuthorize +
 		"?client_id=" + url.QueryEscape(conf.clientID) +
 		"&response_type=code" +
-		"&scope=openid profile" +
+		"&scope=" + url.QueryEscape(conf.authScope) +
 		"&nonce=123" +
 		"&redirect_uri=" + url.QueryEscape(loginRedirect) +
 		"&state=" + url.QueryEscape(requestURLStr)
