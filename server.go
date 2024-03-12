@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-
 	"html"
 	"io"
-	"io/ioutil"
 	"log"
 	"math"
 	"net"
@@ -21,7 +19,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
-	jwtverifier "github.com/okta/okta-jwt-verifier-golang"
+	jwtverifier "github.com/okta/okta-jwt-verifier-golang/v2"
 )
 
 const sock = "/var/run/auth.sock"
@@ -35,6 +33,7 @@ type config struct {
 	httpClient        *http.Client
 	issuer            string //ISSUER
 	ssoPath           string //SSO_PATH
+	authScope         string //AUTH_SCOPE
 	verifier          *jwtverifier.JwtVerifier
 }
 
@@ -92,6 +91,15 @@ func getConfig() *config {
 		}
 	}
 
+	authScope := os.Getenv("AUTH_SCOPE")
+	if authScope == "" {
+		authScope = "openid profile"
+	} else {
+		if !strings.Contains(authScope, "openid") {
+			log.Fatalln("AUTH_SCOPE must contain openid")
+		}
+	}
+
 	httpClient := &http.Client{
 		Timeout: requestTimeOutSeconds,
 	}
@@ -141,6 +149,10 @@ func getConfig() *config {
 		Issuer:           issuer,
 		ClaimsToValidate: toValidate,
 	}
+	verifier, err := jwtverifierSetup.New()
+	if err != nil {
+		log.Fatalf("Unable to create JWT verifier: %v", err)
+	}
 
 	return &config{
 		clientID:          clientID,
@@ -151,7 +163,8 @@ func getConfig() *config {
 		httpClient:        httpClient,
 		issuer:            issuer,
 		ssoPath:           ssoPath,
-		verifier:          jwtverifierSetup.New(),
+		authScope:         authScope,
+		verifier:          verifier,
 	}
 }
 
@@ -221,7 +234,7 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 
 	tokenCookie, err := r.Cookie(getCookieName(r))
 	switch {
-	case err == http.ErrNoCookie:
+	case errors.Is(err, http.ErrNoCookie):
 		w.Header().Set("X-Auth-Request-Redirect", redirectURL(r, conf, r.Header.Get("X-Okta-Nginx-Request-Uri")))
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -401,7 +414,7 @@ type refreshCheckResponse struct {
 func refreshCheckHandler(w http.ResponseWriter, r *http.Request, conf *config) {
 	tokenCookie, err := r.Cookie(getCookieName(r))
 	switch {
-	case err == http.ErrNoCookie:
+	case errors.Is(err, http.ErrNoCookie):
 		log.Printf("refreshCheckHandler: No Cookie")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -553,7 +566,7 @@ func getJWT(r *http.Request, code string, conf *config) (string, error) {
 		"&client_secret=" + url.QueryEscape(conf.clientSecret) +
 		"&redirect_uri=" + url.QueryEscape(loginRedirect) +
 		"&grant_type=authorization_code" +
-		"&scope=openid profile")
+		"&scope=" + url.QueryEscape(conf.authScope))
 
 	req, err := http.NewRequest("POST", conf.endpointToken, bytes.NewBuffer(reqBody))
 	if err != nil {
@@ -568,7 +581,7 @@ func getJWT(r *http.Request, code string, conf *config) (string, error) {
 	}
 
 	defer resp.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -600,7 +613,7 @@ func getMetadata(httpClient *http.Client, wellKnown string) (*metadataResponse, 
 	}
 
 	defer resp.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -660,7 +673,7 @@ func redirectURL(r *http.Request, conf *config, requestURI string) string {
 	return conf.endpointAuthorize +
 		"?client_id=" + url.QueryEscape(conf.clientID) +
 		"&response_type=code" +
-		"&scope=openid profile" +
+		"&scope=" + url.QueryEscape(conf.authScope) +
 		"&nonce=123" +
 		"&redirect_uri=" + url.QueryEscape(loginRedirect) +
 		"&state=" + url.QueryEscape(requestURLStr)

@@ -19,6 +19,7 @@ This repository builds a Docker Image that protects an upstream server using [Ok
 
 ### Optional
 
+- `AUTH_SCOPE` - Defaults to `openid profile`. Okta token auth scopes - note if you override this `openid` is necessary for authentication requests.
 - `APP_POST_LOGIN_URL` - After authentication is complete, redirect to an application-specific URL.  The `state` query parameter will hold the original URL.
 - `COOKIE_DOMAIN` - Defaults to current domain only.  Set in order to allow use on subdomains.
 - `COOKIE_NAME` - Defaults to `okta-jwt`. The name of the cookie that holds the Identity Token
