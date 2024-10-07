@@ -23,14 +23,14 @@ jobs:
           tag="${GITHUB_REF#refs/tags/}"
           if [ "$branch" != "$GITHUB_REF" ]; then
             branch="$(echo "$branch" | sed -e 's/[^a-zA-Z0-9\-\.]/-/g')"
-            echo "::set-output name=TAGS::boxboat/okta-nginx:commit-${branch}"
+            echo "TAGS=boxboat/okta-nginx:commit-${branch},ghcr.io/boxboat/okta-nginx:commit-${branch}" >> $GITHUB_OUTPUT
           elif [ "$tag" != "$GITHUB_REF" ]; then
             latest=""
             if ! echo "$tag" | grep -qF '-'; then
-              latest=",boxboat/okta-nginx:latest"
+              latest=",boxboat/okta-nginx:latest,ghcr.io/boxboat/okta-nginx:latest"
             fi
             tag="$(echo "$tag" | sed -e 's/[^a-zA-Z0-9\-\.]/-/g')"
-            echo "::set-output name=TAGS::boxboat/okta-nginx:${tag}${latest}"
+            echo "TAGS=boxboat/okta-nginx:${tag},ghcr.io/boxboat/okta-nginx:${tag}${latest}" >> $GITHUB_OUTPUT
           else
             echo "unable to determine tag" >&2
             exit 1
@@ -45,9 +45,16 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and push
         id: docker_build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           push: true
           tags: "${{ steps.compute_tags.outputs.TAGS }}"
