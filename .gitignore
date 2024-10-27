@@ -5,3 +5,5 @@
 /okta-nginx
 /server
 /vars.env
+
+node_modules
