@@ -1,7 +1,9 @@
 # okta-nginx
 
 This repository builds a Docker Image that protects an upstream server using [Okta's OpenID Connect](https://developer.okta.com/docs/api/resources/oidc) `Authorization Code` flow
-Images can be found at [boxboat/okta-nginx](https://hub.docker.com/r/boxboat/okta-nginx) or [ghcr.io/boxboat/okta-nginx](https://github.com/boxboat/okta-nginx/pkgs/container/okta-nginx)
+Images can be found at [ghcr.io/boxboat/okta-nginx](https://github.com/boxboat/okta-nginx/pkgs/container/okta-nginx)
+
+*Note images are no longer published to Docker Hub*
 
 ## Prerequisites
 
