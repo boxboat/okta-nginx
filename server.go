@@ -232,19 +232,39 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 	w.Header().Set("X-Auth-Request-Redirect", "")
 	w.Header().Set("X-Auth-Request-User", "")
 
-	tokenCookie, err := r.Cookie(getCookieName(r))
-	switch {
-	case errors.Is(err, http.ErrNoCookie):
-		w.Header().Set("X-Auth-Request-Redirect", redirectURL(r, conf, r.Header.Get("X-Okta-Nginx-Request-Uri")))
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	case err != nil:
-		log.Printf("validateCookieHandler: Error parsing cookie, %v", err)
-		w.WriteHeader(http.StatusUnauthorized)
-		return
+	// Check for bearer token first
+	auth := r.Header.Get("Authorization")
+	split := strings.SplitN(auth, " ", 2)
+	var tokenvalue string = ""
+	var useAccessToken bool = false
+
+	if len(split) == 2 && strings.EqualFold(split[0], "bearer") {
+		tokenvalue = split[1]
+		useAccessToken = true
+	} else {
+		tokenCookie, err := r.Cookie(getCookieName(r))
+		switch {
+		case errors.Is(err, http.ErrNoCookie):
+			w.Header().Set("X-Auth-Request-Redirect", redirectURL(r, conf, r.Header.Get("X-Okta-Nginx-Request-Uri")))
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		case err != nil:
+			log.Printf("validateCookieHandler: Error parsing cookie, %v", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		tokenvalue = tokenCookie.Value
+		useAccessToken = false
 	}
 
-	jwt, err := conf.verifier.VerifyIdToken(tokenCookie.Value)
+	var jwt *jwtverifier.Jwt
+	var err error
+
+	if useAccessToken {
+		jwt, err = conf.verifier.VerifyAccessToken(tokenvalue)
+	} else {
+		jwt, err = conf.verifier.VerifyIdToken(tokenvalue)
+	}
 
 	if err != nil {
 		w.Header().Set("X-Auth-Request-Redirect", redirectURL(r, conf, r.Header.Get("X-Okta-Nginx-Request-Uri")))
@@ -252,16 +272,32 @@ func validateCookieHandler(w http.ResponseWriter, r *http.Request, conf *config)
 		return
 	}
 
-	username, ok := jwt.Claims["preferred_username"]
+	// Try preferred_username first (ID token), fallback to sub (access token)
+	var username interface{}
+	var ok bool
+	var claimName string
+
+	username, ok = jwt.Claims["preferred_username"]
+	if ok {
+		claimName = "preferred_username"
+	} else {
+		username, ok = jwt.Claims["sub"]
+		claimName = "sub"
+	}
+
 	if !ok {
-		log.Printf("validateCookieHandler: Claim 'preferred_username' not included in identity token, %v", tokenCookie.Value)
+		if useAccessToken {
+			log.Printf("validateCookieHandler: Claim 'sub' not included in access token, %v", tokenvalue)
+		} else {
+			log.Printf("validateCookieHandler: Claim 'preferred_username' not included in identity token, %v", tokenvalue)
+		}
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	usernameStr, ok := username.(string)
 	if !ok {
-		log.Printf("validateCookieHandler: Unable to convert 'preferred_username' to string in identity token, %v", tokenCookie.Value)
+		log.Printf("validateCookieHandler: Unable to convert '%v' to string in token, %v", claimName, tokenvalue)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
